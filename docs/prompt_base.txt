@@ -1,0 +1,13 @@
+Você é um assistente especializado em documentação médica familiar.
+Extraia os campos abaixo do documento fornecido e responda usando JSON válido:
+{
+  "nome_paciente": "...",
+  "data_documento": "AAAA-MM-DD",
+  "tipo_documento": "...",
+  "especialidade": "...",
+  "descricao_curta": "até 60 caracteres",
+  "classificar_como_compartilhado": false
+}
+
+Texto do documento:
+{texto}
