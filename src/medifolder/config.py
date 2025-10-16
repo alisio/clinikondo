@@ -1,4 +1,4 @@
-"""Carregamento e validação da configuração do Medifolder."""
+"""Carregamento e validação da configuração do CliniKondo."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ class Config:
 
     @property
     def state_dir(self) -> Path:
-        return self.output_dir / ".medifolder"
+        return self.output_dir / ".clinikondo"
 
     @property
     def patients_storage_path(self) -> Path:
@@ -78,51 +78,51 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
     """Carrega a configuração mesclando argumentos e variáveis de ambiente."""
     env = os.environ
 
-    input_dir = Path(args.input or env.get("MEDIFOLDER_INPUT_DIR", ".")).expanduser()
-    output_dir = Path(args.output or env.get("MEDIFOLDER_OUTPUT_DIR", "./output")).expanduser()
+    input_dir = Path(args.input or env.get("CLINIKONDO_INPUT_DIR", ".")).expanduser()
+    output_dir = Path(args.output or env.get("CLINIKONDO_OUTPUT_DIR", "./output")).expanduser()
 
-    modelo_llm = args.model or env.get("MEDIFOLDER_MODEL", DEFAULT_MODEL)
+    modelo_llm = args.model or env.get("CLINIKONDO_MODEL", DEFAULT_MODEL)
     openai_api_key = args.api_key or env.get("OPENAI_API_KEY")
     openai_api_base = args.api_base or env.get("OPENAI_API_BASE")
     llm_temperature = (
         args.temperature
         if args.temperature is not None
-        else float(env.get("MEDIFOLDER_TEMPERATURE", 0.2))
+        else float(env.get("CLINIKONDO_TEMPERATURE", 0.2))
     )
     llm_max_tokens = (
         args.max_tokens
         if args.max_tokens is not None
-        else int(env.get("MEDIFOLDER_MAX_TOKENS", 512))
+        else int(env.get("CLINIKONDO_MAX_TOKENS", 512))
     )
-    prompt_template = args.prompt_template or env.get("MEDIFOLDER_PROMPT_TEMPLATE")
+    prompt_template = args.prompt_template or env.get("CLINIKONDO_PROMPT_TEMPLATE")
     prompt_template_path = Path(prompt_template).expanduser() if prompt_template else None
     match_nome_paciente_auto = (
         args.match_patient
         if args.match_patient is not None
-        else _bool_from_env(env.get("MEDIFOLDER_MATCH_PATIENT"), True)
+        else _bool_from_env(env.get("CLINIKONDO_MATCH_PATIENT"), True)
     )
     criar_paciente_sem_match = (
         args.create_patient
         if args.create_patient is not None
-        else _bool_from_env(env.get("MEDIFOLDER_CREATE_PATIENT"), True)
+        else _bool_from_env(env.get("CLINIKONDO_CREATE_PATIENT"), True)
     )
     mover_para_compartilhado_sem_match = (
         args.move_to_shared
         if args.move_to_shared is not None
-        else _bool_from_env(env.get("MEDIFOLDER_MOVE_TO_SHARED"), False)
+        else _bool_from_env(env.get("CLINIKONDO_MOVE_TO_SHARED"), False)
     )
     executar_copia_apos_erro = (
         args.copy_on_error
         if args.copy_on_error is not None
-        else _bool_from_env(env.get("MEDIFOLDER_COPY_ON_ERROR"), False)
+        else _bool_from_env(env.get("CLINIKONDO_COPY_ON_ERROR"), False)
     )
     mover_arquivo_original = (
         args.mover
         if hasattr(args, 'mover') and args.mover
-        else _bool_from_env(env.get("MEDIFOLDER_MOVER_ARQUIVO"), False)
+        else _bool_from_env(env.get("CLINIKONDO_MOVER_ARQUIVO"), False)
     )
-    log_nivel = args.log_level or env.get("MEDIFOLDER_LOG_LEVEL", "info")
-    dry_run = args.dry_run or _bool_from_env(env.get("MEDIFOLDER_DRY_RUN"), False)
+    log_nivel = args.log_level or env.get("CLINIKONDO_LOG_LEVEL", "info")
+    dry_run = args.dry_run or _bool_from_env(env.get("CLINIKONDO_DRY_RUN"), False)
     # estrategia_extracao removida - sistema usa exclusivamente LLM
 
     config = Config(

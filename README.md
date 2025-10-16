@@ -1,16 +1,18 @@
-# 🧾 Medifolder - Classificador Automatizado de Documentos Médicos
+# �✨ CliniKondo - O Assistente de Organização Médica
 
-Sistema de linha de comando (CLI) para classificação automática de documentos médicos (PDFs e imagens) com extração de metadados via LLM, organização hierárquica por paciente e tipo, e renomeação padronizada.
+**CliniKondo** é o assistente que transforma o caos de exames, receitas e laudos em pura harmonia digital! 🎯
 
-## 🎯 Funcionalidades
+Com leveza, humor e método, CliniKondo organiza os documentos médicos da sua família de forma inteligente — cada PDF encontra seu lugar perfeito e traz um pouco de alegria à pasta! Sistema de linha de comando (CLI) com IA que classifica automaticamente documentos médicos usando LLM, organizando em estrutura hierárquica por paciente e tipo.
 
-- ✅ **Classificação Automática**: Organiza documentos por tipo (exames, receitas, laudos, etc.)
-- ✅ **Extração via LLM**: Utiliza exclusivamente modelos LLM (OpenAI ou compatíveis como Ollama)
-- ✅ **Organização Hierárquica**: Cria estrutura `paciente/tipo_documento/arquivo_renomeado.pdf`
-- ✅ **Identificação Inteligente**: Reconhece pacientes e metadados via análise de IA
-- ✅ **Sistema de Retry**: Até 3 tentativas com timeout configurável (30s)
-- ✅ **Logging Estruturado**: Rastreamento completo do processamento
-- ✅ **Preservação de Originais**: Arquivos originais são mantidos por padrão
+## ✨ Magia do CliniKondo
+
+- 🪄 **Organização Marie Kondo Style**: Cada documento médico encontra seu lugar ideal com alegria!
+- 🤖 **IA Especializada**: Utiliza exclusivamente LLM (OpenAI/Ollama) para classificação inteligente
+- 🏗️ **Estrutura Zen**: Cria hierarquia organizada `paciente/tipo_documento/arquivo_harmonioso.pdf`
+- 🔍 **Reconhecimento Mágico**: Identifica pacientes e metadados com precisão de IA
+- 🔄 **Persistência Gentil**: Até 3 tentativas suaves com timeout de 30s
+- 📝 **Diário de Bordo**: Logging estruturado de toda a transformação
+- 💝 **Cuidado com Originais**: Preserva arquivos originais com carinho (padrão)
 
 ## 📋 Tipos de Documento Suportados
 
@@ -25,11 +27,11 @@ Sistema de linha de comando (CLI) para classificação automática de documentos
 | `agenda` | `agendas` | Consultas, agendamentos |
 | `documento` | `documentos` | Formulários e documentos gerais |
 
-## 🏥 Especialidades Reconhecidas
+## 🏥 Especialidades que CliniKondo Reconhece
 
 `radiologia`, `laboratorial`, `cardiologia`, `endocrinologia`, `ginecologia`, `clinica_geral`, `dermatologia`, `pediatria`
 
-## 📄 Formatos Suportados e OCR
+## 📄 Formatos que Trazem Alegria ao CliniKondo
 
 ### **Formatos de Arquivo:**
 - **PDFs**: `.pdf` (com ou sem texto embutido)
@@ -112,30 +114,32 @@ export OPENAI_API_BASE="http://localhost:11434/v1"
 ### 3. **Estrutura de Pastas**
 
 ```bash
-# Crie as pastas necessárias
-mkdir -p ~/medifolder/entrada
-mkdir -p ~/medifolder/saida
+### **🏠 Preparando o Sanctuário CliniKondo:**
 
-# Coloque documentos médicos para processar
-cp seus_documentos.pdf ~/medifolder/entrada/
+```bash
+# Criando o espaço sagrado de organização
+mkdir -p ~/clinikondo/{entrada,saida}
+
+# Colocando documentos para a transformação mágica
+cp seus_documentos.pdf ~/clinikondo/entrada/
 ```
 
 ## 🚀 Como Usar
 
 ### **Comando Básico**
 ```bash
-python -m medifolder \
-  --input ~/medifolder/entrada \
-  --output ~/medifolder/saida \
+python -m clinikondo \
+  --input ~/clinikondo/entrada \
+  --output ~/clinikondo/saida \
   --model gpt-4 \
   --log-level info
 ```
 
 ### **Com Ollama Local**
 ```bash
-PYTHONPATH=/path/to/medifolder/src python -m medifolder \
-  --input ~/medifolder/entrada \
-  --output ~/medifolder/saida \
+PYTHONPATH=/path/to/clinikondo/src python -m clinikondo \
+  --input ~/clinikondo/entrada \
+  --output ~/clinikondo/saida \
   --model gpt-oss:20b \
   --api-base http://localhost:11434/v1 \
   --api-key mock-key \
@@ -146,9 +150,9 @@ PYTHONPATH=/path/to/medifolder/src python -m medifolder \
 
 ### **Modo Teste (Dry-run)**
 ```bash
-python -m medifolder \
-  --input ~/medifolder/entrada \
-  --output ~/medifolder/saida \
+python -m clinikondo \
+  --input ~/clinikondo/entrada \
+  --output ~/clinikondo/saida \
   --model gpt-4 \
   --dry-run  # Não move arquivos, apenas simula
 ```
@@ -171,7 +175,7 @@ python -m medifolder \
 ## 📁 Estrutura de Saída
 
 ```
-~/medifolder/saida/
+~/clinikondo/saida/
 ├── antonio_alisio_de_menezes_cordeiro/
 │   ├── exames/
 │   │   ├── 2024-03-15-antonio_alisio_de_menezes_cordeiro-exame-laboratorial-hemograma-completo.pdf
@@ -210,19 +214,19 @@ ollama run gpt-oss:20b
 ### **Problema: Código não atualiza após edições**
 ```bash
 # Use PYTHONPATH para forçar versão local
-PYTHONPATH=/path/to/medifolder/src python -m medifolder [argumentos]
+PYTHONPATH=/path/to/clinikondo/src python -m clinikondo [argumentos]
 ```
 
 ## 📝 Exemplos de Uso
 
 ### **1. Processamento Básico**
 ```bash
-python -m medifolder --input ./docs --output ./organized --model gpt-4
+python -m clinikondo --input ./docs --output ./organized --model gpt-4
 ```
 
 ### **2. Com Configurações Personalizadas**
 ```bash
-python -m medifolder \
+python -m clinikondo \
   --input ./medical_docs \
   --output ./sorted_docs \
   --model gpt-3.5-turbo \
@@ -234,7 +238,7 @@ python -m medifolder \
 ### **3. Teste com Ollama**
 ```bash
 export PYTHONPATH=/Users/seu-usuario/dev/medifolder/src
-python -m medifolder \
+python -m clinikondo \
   --input ~/documentos_medicos \
   --output ~/documentos_organizados \
   --model llama3:8b \
@@ -303,20 +307,22 @@ pytest tests/test_processing.py -v
 
 > ⚠️ **Sistema requer LLM**: A aplicação utiliza exclusivamente LLM para processamento
 
-### **⚡ Instalação por Cenário:**
+## 🚀 Trazendo CliniKondo para Casa
+
+### **⚡ Rituais de Instalação:**
 
 ```bash
-# Cenário 1: Uso completo (obrigatório)
+# 🏠 Instalação Completa (recomendada)
 pip install -r requirements.txt
 
-# Cenário 2: Desenvolvimento
+# 🔧 Para Desenvolvedores  
 pip install -r requirements-dev.txt
 
-# Cenário 3: PyPI com funcionalidades específicas
-pip install -e ".[pdf,ocr]"  # adicione extras conforme necessário
+# 🎯 Instalação Customizada
+pip install -e ".[pdf,ocr]"  # escolha suas funcionalidades favoritas
 ```
 
-> 📝 **Nota**: `requirements-minimal.txt` foi removido pois o sistema requer LLM obrigatoriamente
+> 🌟 **CliniKondo Wisdom**: LLM é essencial para a magia acontecer!
 
 ### **🔧 Dependências do Sistema:**
 

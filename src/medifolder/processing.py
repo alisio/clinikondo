@@ -1,4 +1,4 @@
-"""Orquestração do pipeline de processamento de documentos."""
+"""Orquestração do pipeline de processamento de documentos CliniKondo."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ SUPPORTED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".heic
 
 
 class DocumentProcessor:
-    """Processa documentos conforme regras de negócio definidas."""
+    """Processa documentos com a magia organizacional do CliniKondo! ✨"""
 
     def __init__(
         self,

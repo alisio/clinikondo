@@ -3,16 +3,16 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "medifolder"
+name = "clinikondo"
 version = "0.1.0"
-description = "Sistema de classificação de documentos médicos usando LLM"
+description = "CliniKondo: O assistente que transforma o caos de documentos médicos em harmonia digital"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
   { name = "Seu Nome", email = "seu-email@example.com" },
 ]
-keywords = ["medifolder", "llm", "document-classification", "medical"]
+keywords = ["clinikondo", "llm", "document-classification", "medical", "kondo"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
@@ -48,7 +48,7 @@ ocr = [
 
 [project.urls]
 homepage = "https://example.com"
-repository = "https://example.com/medifolder"
+repository = "https://example.com/clinikondo"
 
 [tool.setuptools.packages.find]
 where = ["src"]

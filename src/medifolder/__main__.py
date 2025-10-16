@@ -1,4 +1,4 @@
-"""Interface de linha de comando do Medifolder."""
+"""Interface de linha de comando do CliniKondo - onde a magia começa! ✨"""
 
 from __future__ import annotations
 
@@ -10,8 +10,9 @@ from . import load_config_from_args, run_pipeline
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Constrói o parser de argumentos para CliniKondo."""
     parser = argparse.ArgumentParser(
-        description="Classificador automatizado de documentos médicos familiares."
+        description="CliniKondo: O assistente que transforma caos em harmonia digital! 🧹✨"
     )
     parser.add_argument(
         "--input",
@@ -90,6 +91,7 @@ def configure_logging(level_name: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Ponto de entrada principal do CliniKondo - onde a magia da organização acontece! ✨"""
     parser = build_parser()
     args = parser.parse_args(argv)
     try:

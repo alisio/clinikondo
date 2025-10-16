@@ -1,5 +1,5 @@
-# Medifolder - Requirements
-# Classificador Automatizado de Documentos Médicos
+# CliniKondo - Requirements
+# O Assistente que Transforma Caos em Harmonia Digital ✨
 
 # ============================================================================
 # DEPENDÊNCIAS CORE (obrigatórias)
@@ -78,4 +78,4 @@ build>=1.0.0
 
 # OPENAI_API_KEY=sua-chave-openai
 # OPENAI_API_BASE=https://api.openai.com/v1  # ou http://localhost:11434/v1 para Ollama
-# MEDIFOLDER_LOG_LEVEL=info
+# CLINIKONDO_LOG_LEVEL=info

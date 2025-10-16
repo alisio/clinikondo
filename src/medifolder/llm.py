@@ -1,4 +1,4 @@
-"""Integração com serviços LLM e heurísticas locais."""
+"""Integração CliniKondo com LLM para extração mágica de metadados."""
 
 from __future__ import annotations
 

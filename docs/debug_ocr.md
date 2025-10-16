@@ -1,13 +1,13 @@
-# 🐛 Modo Debug - OCR e Extração de Texto
+# 🐛 Modo Debug do CliniKondo - OCR e Extração de Texto
 
 ## Como Ativar o Modo Debug
 
-Para ver o conteúdo extraído via OCR e outros detalhes do processamento:
+Para ver o conteúdo extraído via OCR e outros detalhes da magia CliniKondo:
 
 ```bash
-python -m medifolder \
-  --input ~/medifolder/entrada \
-  --output ~/medifolder/saida \
+python -m clinikondo \
+  --input ~/clinikondo/entrada \
+  --output ~/clinikondo/saida \
   --model gpt-oss:20b \
   --api-base http://localhost:11434/v1 \
   --api-key mock-key \
