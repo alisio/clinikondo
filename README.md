@@ -29,6 +29,35 @@ Sistema de linha de comando (CLI) para classificação automática de documentos
 
 `radiologia`, `laboratorial`, `cardiologia`, `endocrinologia`, `ginecologia`, `clinica_geral`, `dermatologia`, `pediatria`
 
+## 📄 Formatos Suportados e OCR
+
+### **Formatos de Arquivo:**
+- **PDFs**: `.pdf` (com ou sem texto embutido)
+- **Imagens**: `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.heic`
+- **Texto**: `.txt`
+
+### **🔍 Processamento Inteligente de PDFs:**
+
+| Tipo de PDF | Método de Extração | Dependências |
+|-------------|-------------------|--------------|
+| **PDF com texto** | PyPDF2 | `PyPDF2>=3.0.0` |
+| **PDF escaneado** | OCR automático (PyMuPDF + Tesseract) | `PyMuPDF>=1.23.0`, `pillow>=10.0.0`, `pytesseract>=0.3.10` |
+
+> 🚀 **OCR Automático**: Se um PDF não contém texto embutido, o sistema automaticamente aplica OCR para extrair o texto das imagens
+
+### **⚙️ Configuração OCR:**
+
+```bash
+# macOS
+brew install tesseract
+
+# Ubuntu/Debian  
+sudo apt install tesseract-ocr tesseract-ocr-por
+
+# Windows
+# Baixar de: https://github.com/UB-Mannheim/tesseract/wiki
+```
+
 ## ⚙️ Configuração
 
 ### 1. **Instalação**

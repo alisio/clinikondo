@@ -18,6 +18,9 @@ openai>=1.35.0
 # PDF Processing (necessário para processar arquivos PDF)
 PyPDF2>=3.0.0
 
+# PDF OCR Processing (necessário para PDFs escaneados)
+PyMuPDF>=1.23.0
+
 # OCR/Image Processing (necessário para processar imagens com OCR)
 pillow>=10.0.0
 pytesseract>=0.3.10

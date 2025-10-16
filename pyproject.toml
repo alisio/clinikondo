@@ -35,6 +35,12 @@ dev = [
 pdf = [
   "PyPDF2>=3.0.0",
 ]
+pdf-ocr = [
+  "PyPDF2>=3.0.0",
+  "PyMuPDF>=1.23.0",
+  "pillow>=10.0.0",
+  "pytesseract>=0.3.10",
+]
 ocr = [
   "pillow>=10.0.0",
   "pytesseract>=0.3.10",

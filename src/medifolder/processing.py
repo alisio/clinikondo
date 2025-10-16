@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import logging
 import shutil
 from pathlib import Path
@@ -162,12 +163,20 @@ class DocumentProcessor:
     def _extract_text(self, path: Path) -> str:
         try:
             if path.suffix.lower() == ".txt":
-                return path.read_text(encoding="utf-8")
-            if path.suffix.lower() == ".pdf":
-                return self._extract_text_pdf(path)
-            if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".heic"}:
-                return self._extract_text_image(path)
-            return path.read_text(encoding="utf-8", errors="ignore")
+                text = path.read_text(encoding="utf-8")
+            elif path.suffix.lower() == ".pdf":
+                text = self._extract_text_pdf(path)
+            elif path.suffix.lower() in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".heic"}:
+                text = self._extract_text_image(path)
+            else:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            
+            # Log do texto extraído em modo debug
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                text_preview = text[:200] + "..." if len(text) > 200 else text
+                LOGGER.debug("Texto extraído de %s (%d chars): %s", path.name, len(text), text_preview)
+            
+            return text
         except Exception as exc:
             LOGGER.warning("Falha ao extrair texto de %s: %s", path.name, exc)
             return ""
@@ -179,12 +188,33 @@ class DocumentProcessor:
         except ImportError:  # pragma: no cover - depende de pip
             LOGGER.debug("PyPDF2 não instalado, retornando texto vazio para %s", path)
             return ""
+        
         text_parts: list[str] = []
         with path.open("rb") as pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
             for page in reader.pages:
                 text_parts.append(page.extract_text() or "")
-        return "\n".join(text_parts)
+        
+        extracted_text = "\n".join(text_parts).strip()
+        
+        # Log detalhado em modo debug
+        if LOGGER.isEnabledFor(logging.DEBUG):
+            LOGGER.debug("PyPDF2 extraiu %d caracteres de %s", len(extracted_text), path.name)
+        
+        # Se não conseguiu extrair texto (PDF escaneado), tenta OCR
+        if not extracted_text:
+            LOGGER.info("PDF sem texto embutido detectado, tentando OCR: %s", path.name)
+            try:
+                ocr_text = DocumentProcessor._extract_text_pdf_with_ocr(path)
+                if LOGGER.isEnabledFor(logging.DEBUG):
+                    ocr_preview = ocr_text[:300] + "..." if len(ocr_text) > 300 else ocr_text
+                    LOGGER.debug("OCR extraiu %d caracteres de %s: %s", len(ocr_text), path.name, ocr_preview)
+                return ocr_text
+            except Exception as ocr_exc:
+                LOGGER.warning("Falha no OCR para PDF %s: %s", path.name, ocr_exc)
+                return ""
+        
+        return extracted_text
 
     @staticmethod
     def _extract_text_image(path: Path) -> str:
@@ -194,5 +224,62 @@ class DocumentProcessor:
         except ImportError:  # pragma: no cover - depende de pip
             LOGGER.debug("Bibliotecas de OCR não instaladas, texto vazio para %s", path)
             return ""
+        
         with Image.open(path) as img:
-            return pytesseract.image_to_string(img)
+            extracted_text = pytesseract.image_to_string(img, lang='por')
+            
+            # Log detalhado em modo debug
+            if LOGGER.isEnabledFor(logging.DEBUG):
+                text_clean = extracted_text.strip()
+                char_count = len(text_clean)
+                if char_count > 0:
+                    preview = text_clean[:200] + "..." if len(text_clean) > 200 else text_clean
+                    LOGGER.debug("OCR imagem %s (%d chars): %s", path.name, char_count, preview)
+                else:
+                    LOGGER.debug("OCR imagem %s: nenhum texto encontrado", path.name)
+            
+            return extracted_text
+
+    @staticmethod
+    def _extract_text_pdf_with_ocr(path: Path) -> str:
+        """Extrai texto de PDF escaneado usando OCR."""
+        try:
+            import fitz  # PyMuPDF
+            from PIL import Image  # type: ignore
+            import pytesseract  # type: ignore
+        except ImportError:  # pragma: no cover - depende de pip
+            LOGGER.debug("Bibliotecas de OCR/PDF não instaladas para %s", path)
+            return ""
+        
+        text_parts: list[str] = []
+        
+        # Abre o PDF com PyMuPDF
+        with fitz.open(path) as doc:
+            total_pages = len(doc)
+            LOGGER.debug("Iniciando OCR em PDF com %d páginas: %s", total_pages, path.name)
+            
+            for page_num in range(total_pages):
+                page = doc.load_page(page_num)
+                
+                # Converte página para imagem
+                pix = page.get_pixmap()
+                img_data = pix.tobytes("png")
+                
+                # Aplica OCR na imagem
+                with Image.open(io.BytesIO(img_data)) as img:
+                    page_text = pytesseract.image_to_string(img, lang='por')
+                    text_parts.append(page_text)
+                    
+                    # Log detalhado por página em modo debug
+                    if LOGGER.isEnabledFor(logging.DEBUG):
+                        page_text_clean = page_text.strip()
+                        char_count = len(page_text_clean)
+                        if char_count > 0:
+                            preview = page_text_clean[:150] + "..." if len(page_text_clean) > 150 else page_text_clean
+                            LOGGER.debug("OCR página %d/%d (%d chars): %s", page_num + 1, total_pages, char_count, preview)
+                        else:
+                            LOGGER.debug("OCR página %d/%d: nenhum texto encontrado", page_num + 1, total_pages)
+        
+        final_text = "\n".join(text_parts)
+        LOGGER.info("OCR concluído para %s: %d caracteres extraídos", path.name, len(final_text))
+        return final_text
