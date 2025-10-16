@@ -5,9 +5,9 @@ Sistema de linha de comando (CLI) para classificação automática de documentos
 ## 🎯 Funcionalidades
 
 - ✅ **Classificação Automática**: Organiza documentos por tipo (exames, receitas, laudos, etc.)
-- ✅ **Extração via LLM**: Utiliza modelos OpenAI ou compatíveis (Ollama) para extrair metadados
+- ✅ **Extração via LLM**: Utiliza exclusivamente modelos LLM (OpenAI ou compatíveis como Ollama)
 - ✅ **Organização Hierárquica**: Cria estrutura `paciente/tipo_documento/arquivo_renomeado.pdf`
-- ✅ **Identificação Inteligente**: Reconhece pacientes mesmo com nomes abreviados
+- ✅ **Identificação Inteligente**: Reconhece pacientes e metadados via análise de IA
 - ✅ **Sistema de Retry**: Até 3 tentativas com timeout configurável (30s)
 - ✅ **Logging Estruturado**: Rastreamento completo do processamento
 - ✅ **Preservação de Originais**: Arquivos originais são mantidos por padrão
@@ -41,12 +41,25 @@ cd medifolder
 # Crie e ative ambiente virtual
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Instale dependências
-pip install -e .[dev]
 ```
 
-### 2. **Configuração do LLM**
+#### **Opções de Instalação:**
+
+**🚀 Instalação Completa (Obrigatória):**
+```bash
+# LLM + OCR + PDF (todas as funcionalidades)
+pip install -r requirements.txt
+```
+
+**📦 Instalação via PyPI (Modo editable):**
+```bash
+# Instala todas as dependências
+pip install -e ".[llm,pdf,ocr,dev]"
+```
+
+> ⚠️ **Importante**: Sistema requer LLM obrigatoriamente. Configuração de `OPENAI_API_KEY` é obrigatória.
+
+### 2. **Configuração do LLM (Obrigatória)**
 
 #### **Opção A: OpenAI**
 ```bash
@@ -238,4 +251,54 @@ pytest --cov=medifolder
 
 # Teste específico
 pytest tests/test_processing.py -v
+```
+
+## 📦 Dependências
+
+### **🔧 Requirements Files:**
+
+| Arquivo | Descrição | Uso |
+|---------|-----------|-----|
+| `requirements.txt` | **Completo** - Todas as funcionalidades | Produção completa |
+| `requirements-minimal.txt` | **Básico** - Apenas heurísticas + PDF | Uso simples sem LLM |
+| `requirements-dev.txt` | **Desenvolvimento** - Ferramentas dev + testes | Desenvolvimento |
+
+### **🎯 Dependências por Funcionalidade:**
+
+| Funcionalidade | Dependências | Obrigatório |
+|---------------|--------------|-------------|
+| **LLM Processing** | `openai>=1.35.0` | ✅ |
+| **PDF Processing** | `PyPDF2>=3.0.0` | ✅ |
+| **OCR/Images** | `pillow>=10.0.0`, `pytesseract>=0.3.10` | ❌ |
+| **Development** | `pytest`, `ruff`, `mypy`, etc. | ❌ |
+
+> ⚠️ **Sistema requer LLM**: A aplicação utiliza exclusivamente LLM para processamento
+
+### **⚡ Instalação por Cenário:**
+
+```bash
+# Cenário 1: Uso completo (obrigatório)
+pip install -r requirements.txt
+
+# Cenário 2: Desenvolvimento
+pip install -r requirements-dev.txt
+
+# Cenário 3: PyPI com funcionalidades específicas
+pip install -e ".[pdf,ocr]"  # adicione extras conforme necessário
+```
+
+> 📝 **Nota**: `requirements-minimal.txt` foi removido pois o sistema requer LLM obrigatoriamente
+
+### **🔧 Dependências do Sistema:**
+
+**Tesseract OCR** (necessário apenas para processamento de imagens):
+```bash
+# macOS
+brew install tesseract
+
+# Ubuntu/Debian  
+sudo apt install tesseract-ocr
+
+# Windows
+# Download: https://github.com/UB-Mannheim/tesseract/wiki
 ```

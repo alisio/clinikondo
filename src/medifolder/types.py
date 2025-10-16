@@ -62,6 +62,20 @@ def _default_types() -> list[DocumentType]:
     ]
 
 
+# Mapeamento de sinônimos para melhorar resolução de tipos
+_TYPE_SYNONYMS = {
+    "relatorio": "laudo",
+    "resultado": "exame", 
+    "exame_laboratorial": "exame",
+    "exame_sangue": "exame",
+    "teste": "exame",
+    "atestado": "laudo",
+    "declaracao": "documento",
+    "formulario": "documento",
+    "comprovante": "documento",
+}
+
+
 class DocumentTypeCatalog:
     """Catálogo com estratégias para mapear um nome de tipo para uma subpasta."""
 
@@ -77,8 +91,28 @@ class DocumentTypeCatalog:
     def resolve(self, name: str | None) -> DocumentType:
         if not name:
             return self._types[self._key("documento")]
+        
+        # Normalizar nome para busca
         key = self._key(name)
-        return self._types.get(key, self._types[self._key("documento")])
+        
+        # Tentar busca direta primeiro
+        if key in self._types:
+            return self._types[key]
+        
+        # Usar mapeamento de sinônimos se disponível
+        if key in _TYPE_SYNONYMS:
+            synonym_key = self._key(_TYPE_SYNONYMS[key])
+            if synonym_key in self._types:
+                return self._types[synonym_key]
+        
+        # Busca fuzzy nas palavras-chave dos tipos
+        for doc_type in self._types.values():
+            for keyword in doc_type.palavras_chave:
+                if sanitize_token(keyword, separator="_") == key:
+                    return doc_type
+        
+        # Fallback para documento padrão
+        return self._types[self._key("documento")]
 
     def infer_from_text(self, text: str) -> DocumentType:
         text_clean = sanitize_token(text, separator=" ")

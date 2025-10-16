@@ -77,7 +77,14 @@ class DocumentProcessor:
         document.caminho_destino = destination_path
         if not self.config.dry_run:
             self._move_document(document.caminho_entrada, destination_path)
-        document.log_processamento = f"Documento movido para {destination_path}"
+        
+        # Log adequado conforme a ação realizada
+        if self.config.dry_run:
+            action = "seria copiado para" if not self.config.mover_arquivo_original else "seria movido para"
+        else:
+            action = "copiado para" if not self.config.mover_arquivo_original else "movido para"
+        
+        document.log_processamento = f"Documento {action} {destination_path}"
         return document
 
     def _resolve_patient(self, document: Document):
@@ -134,7 +141,13 @@ class DocumentProcessor:
             counter += 1
 
     def _move_document(self, source: Path, destination: Path) -> None:
-        shutil.move(source, destination)
+        """Move ou copia o documento conforme configuração."""
+        if self.config.mover_arquivo_original:
+            # Move o arquivo (deleta original)
+            shutil.move(source, destination)
+        else:
+            # Copia o arquivo (preserva original) - comportamento padrão
+            shutil.copy2(source, destination)
 
     def _preserve_on_error(self, source: Path) -> None:
         destino_base = self.config.output_dir / "falhas"

@@ -33,10 +33,11 @@ class Config:
     match_nome_paciente_auto: bool = True
     criar_paciente_sem_match: bool = True
     mover_para_compartilhado_sem_match: bool = False
+    mover_arquivo_original: bool = False
     executar_copia_apos_erro: bool = False
     log_nivel: str = "info"
     dry_run: bool = False
-    estrategia_extracao: str = "auto"
+    # estrategia_extracao removida - sistema usa exclusivamente LLM
 
     def validar(self) -> None:
         if not self.input_dir.exists():
@@ -51,6 +52,9 @@ class Config:
             raise ValueError("Temperatura deve estar entre 0 e 2.")
         if self.llm_max_tokens <= 0:
             raise ValueError("llm_max_tokens deve ser positivo.")
+        # Validação obrigatória: sistema requer LLM
+        if not self.openai_api_key:
+            raise ValueError("OPENAI_API_KEY é obrigatória. Sistema utiliza exclusivamente LLM para processamento.")
 
     @property
     def state_dir(self) -> Path:
@@ -112,9 +116,14 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
         if args.copy_on_error is not None
         else _bool_from_env(env.get("MEDIFOLDER_COPY_ON_ERROR"), False)
     )
+    mover_arquivo_original = (
+        args.mover
+        if hasattr(args, 'mover') and args.mover
+        else _bool_from_env(env.get("MEDIFOLDER_MOVER_ARQUIVO"), False)
+    )
     log_nivel = args.log_level or env.get("MEDIFOLDER_LOG_LEVEL", "info")
     dry_run = args.dry_run or _bool_from_env(env.get("MEDIFOLDER_DRY_RUN"), False)
-    estrategia_extracao = args.strategy or env.get("MEDIFOLDER_STRATEGY", "auto")
+    # estrategia_extracao removida - sistema usa exclusivamente LLM
 
     config = Config(
         input_dir=input_dir,
@@ -128,10 +137,11 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
         match_nome_paciente_auto=match_nome_paciente_auto,
         criar_paciente_sem_match=criar_paciente_sem_match,
         mover_para_compartilhado_sem_match=mover_para_compartilhado_sem_match,
+        mover_arquivo_original=mover_arquivo_original,
         executar_copia_apos_erro=executar_copia_apos_erro,
         log_nivel=log_nivel,
         dry_run=dry_run,
-        estrategia_extracao=estrategia_extracao,
+        # estrategia_extracao removida - sistema usa exclusivamente LLM
     )
     config.validar()
     return config

@@ -1,0 +1,78 @@
+# Medifolder - Requirements
+# Classificador Automatizado de Documentos Médicos
+
+# ============================================================================
+# DEPENDÊNCIAS CORE (obrigatórias)
+# ============================================================================
+
+# Não há dependências core - sistema usa apenas bibliotecas padrão do Python
+
+
+# ============================================================================
+# DEPENDÊNCIAS FUNCIONAIS (opcionais, por funcionalidade)
+# ============================================================================
+
+# LLM Integration (necessário para extração via LLM)
+openai>=1.35.0
+
+# PDF Processing (necessário para processar arquivos PDF)
+PyPDF2>=3.0.0
+
+# OCR/Image Processing (necessário para processar imagens com OCR)
+pillow>=10.0.0
+pytesseract>=0.3.10
+
+# ============================================================================
+# DEPENDÊNCIAS DE DESENVOLVIMENTO (opcional)
+# ============================================================================
+
+# Testing
+pytest>=7.0
+pytest-cov>=4.0
+
+# Code Quality
+ruff>=0.3.0
+mypy>=1.5.0
+
+# Build Tools
+build>=1.0.0
+
+# ============================================================================
+# INSTALAÇÃO POR FUNCIONALIDADE
+# ============================================================================
+
+# Para uso completo (recomendado):
+# pip install -r requirements.txt
+
+# Para uso básico apenas com heurísticas (sem LLM):
+# pip install PyPDF2>=3.0.0 pillow>=10.0.0 pytesseract>=0.3.10
+
+# Para uso apenas com LLM (sem OCR):
+# pip install openai>=1.35.0 PyPDF2>=3.0.0
+
+# Para desenvolvimento:
+# pip install -r requirements.txt
+
+# ============================================================================
+# COMPATIBILIDADE
+# ============================================================================
+
+# Python: >=3.10
+# Sistemas: macOS, Linux, Windows
+# Tesseract OCR: Requer instalação separada do sistema para pytesseract
+
+# ============================================================================
+# INSTALAÇÃO TESSERACT (necessário para OCR)
+# ============================================================================
+
+# macOS: brew install tesseract
+# Ubuntu/Debian: sudo apt install tesseract-ocr
+# Windows: https://github.com/UB-Mannheim/tesseract/wiki
+
+# ============================================================================
+# VARIÁVEIS DE AMBIENTE RECOMENDADAS
+# ============================================================================
+
+# OPENAI_API_KEY=sua-chave-openai
+# OPENAI_API_BASE=https://api.openai.com/v1  # ou http://localhost:11434/v1 para Ollama
+# MEDIFOLDER_LOG_LEVEL=info

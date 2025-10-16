@@ -41,11 +41,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Caminho para o template de prompt a ser utilizado.",
     )
     parser.add_argument(
-        "--strategy",
-        choices=["auto", "llm", "heuristico"],
-        help="Estratégia de extração de metadados.",
-    )
-    parser.add_argument(
         "--log-level",
         help="Nível de log (debug, info, warning, error).",
     )
@@ -77,6 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=None,
         help="Copia documentos com erro para a pasta de falhas.",
+    )
+    parser.add_argument(
+        "--mover",
+        action="store_true",
+        help="Move arquivos originais (deletando-os) em vez de copiá-los (comportamento padrão é preservar originais).",
     )
     return parser
 
