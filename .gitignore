@@ -24,7 +24,7 @@ share/python-wheels/
 
 # Virtual environments
 .env
-.venv
+.venv/
 env/
 venv/
 ENV/
@@ -54,6 +54,9 @@ poetry.lock
 # Pytest cache
 .pytest_cache/
 
+# Sistema e cache desnecessários
+.DS_Store
+
 # Coverage reports
 .coverage
 *.cover
@@ -63,5 +66,9 @@ htmlcov/
 # Ruff cache
 .ruff_cache/
 
-# Medifolder runtime output
+# CliniKondo runtime output e estado
 output/
+.clinikondo/
+*.log
+temp/
+tmp/

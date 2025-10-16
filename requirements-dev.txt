@@ -57,7 +57,7 @@ line-profiler>=4.0.0
 # pytest
 
 # Para verificar cobertura:
-# pytest --cov=medifolder --cov-report=html
+# pytest --cov=clinikondo --cov-report=html
 
 # Para lint/formatação:
 # ruff check .

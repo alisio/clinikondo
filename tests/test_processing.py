@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from medifolder import Config, run_pipeline
+from clinikondo import Config, run_pipeline
 
 
 def build_config(input_dir: Path, output_dir: Path, **overrides):

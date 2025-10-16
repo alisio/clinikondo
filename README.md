@@ -237,7 +237,7 @@ python -m clinikondo \
 
 ### **3. Teste com Ollama**
 ```bash
-export PYTHONPATH=/Users/seu-usuario/dev/medifolder/src
+export PYTHONPATH=/Users/seu-usuario/dev/clinikondo/src
 python -m clinikondo \
   --input ~/documentos_medicos \
   --output ~/documentos_organizados \

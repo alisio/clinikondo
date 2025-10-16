@@ -1,4 +1,4 @@
-# 🐛 Modo Debug do CliniKondo - OCR e Extração de Texto
+# 🐛 CliniKondo Debug - OCR e Extração de Texto Mágica ✨
 
 ## Como Ativar o Modo Debug
 
@@ -77,12 +77,12 @@ Exame: Hemograma Completo...
 
 ### Variável de Ambiente:
 ```bash
-export MEDIFOLDER_LOG_LEVEL=debug
+export CLINIKONDO_LOG_LEVEL=debug
 ```
 
 ### Arquivo de Configuração (.env):
 ```
-MEDIFOLDER_LOG_LEVEL=debug
+CLINIKONDO_LOG_LEVEL=debug
 ```
 
 ## 🎯 Casos de Uso
