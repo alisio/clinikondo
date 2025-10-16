@@ -128,7 +128,7 @@ cp seus_documentos.pdf ~/clinikondo/entrada/
 
 ### **Comando Básico**
 ```bash
-python -m clinikondo \
+python -m src.clinikondo processar \
   --input ~/clinikondo/entrada \
   --output ~/clinikondo/saida \
   --model gpt-4 \
@@ -137,7 +137,7 @@ python -m clinikondo \
 
 ### **Com Ollama Local**
 ```bash
-PYTHONPATH=/path/to/clinikondo/src python -m clinikondo \
+python -m src.clinikondo processar \
   --input ~/clinikondo/entrada \
   --output ~/clinikondo/saida \
   --model gpt-oss:20b \
@@ -150,7 +150,7 @@ PYTHONPATH=/path/to/clinikondo/src python -m clinikondo \
 
 ### **Modo Teste (Dry-run)**
 ```bash
-python -m clinikondo \
+python -m src.clinikondo processar \
   --input ~/clinikondo/entrada \
   --output ~/clinikondo/saida \
   --model gpt-4 \

@@ -57,6 +57,13 @@ class DocumentProcessor:
         return processed
 
     def _process_single(self, path: Path) -> Document:
+        # Validar arquivo antes do processamento
+        validation_errors = self._validate_file(path)
+        if validation_errors:
+            error_msg = f"Arquivo {path.name} falhou na validação: {'; '.join(validation_errors)}"
+            LOGGER.warning(error_msg)
+            raise DocumentProcessingError(error_msg)
+        
         document = Document(caminho_entrada=path)
         document.texto_extraido = self._extract_text(path)
         extractor_result = self.extractor.extract(
@@ -283,3 +290,36 @@ class DocumentProcessor:
         final_text = "\n".join(text_parts)
         LOGGER.info("OCR concluído para %s: %d caracteres extraídos", path.name, len(final_text))
         return final_text
+
+    def _validate_file(self, file_path: Path) -> List[str]:
+        """Valida um arquivo conforme as regras do SRS do CliniKondo."""
+        errors = []
+        
+        if not file_path.exists():
+            errors.append(f"Arquivo não encontrado: {file_path}")
+            return errors
+        
+        # Verificar tamanho (limite de 50MB)
+        size_mb = file_path.stat().st_size / (1024 * 1024)
+        if size_mb > 50:
+            errors.append(f"Arquivo muito grande: {size_mb:.1f}MB (máximo: 50MB)")
+        
+        # Verificar extensão suportada
+        extension = file_path.suffix.lower()
+        if extension not in SUPPORTED_EXTENSIONS:
+            errors.append(f"Formato não suportado: {extension}")
+        
+        # Verificar caracteres perigosos no nome
+        dangerous_chars = ['<', '>', ':', '"', '|', '?', '*', '\0']
+        if any(char in file_path.name for char in dangerous_chars):
+            errors.append(f"Nome de arquivo contém caracteres perigosos: {file_path.name}")
+        
+        # Verificar se nome não é muito longo (limite prático de 255 caracteres)
+        if len(file_path.name) > 255:
+            errors.append(f"Nome de arquivo muito longo: {len(file_path.name)} caracteres (máximo: 255)")
+        
+        # Verificar se arquivo não está vazio
+        if file_path.stat().st_size == 0:
+            errors.append("Arquivo está vazio")
+        
+        return errors

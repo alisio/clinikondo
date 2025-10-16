@@ -1,0 +1,20 @@
+[
+  {
+    "nome_completo": "João Silva Santos",
+    "slug_diretorio": "joao_silva_santos",
+    "nomes_alternativos": [
+      "João Silva",
+      "João Santos"
+    ],
+    "genero": "M"
+  },
+  {
+    "nome_completo": "Maria Oliveira",
+    "slug_diretorio": "maria_oliveira",
+    "nomes_alternativos": [
+      "Maria",
+      "Maria José"
+    ],
+    "genero": "F"
+  }
+]
