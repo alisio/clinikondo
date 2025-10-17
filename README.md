@@ -237,13 +237,16 @@ CliniKondo possui um **sistema inteligente de cache** que evita reprocessamento 
 ### **📍 Localização do Cache:**
 
 ```
-~/seu_diretorio_saida/.clinikondo/processed_hashes.json
+~/seu_diretorio_saida/.clinikondo/
+├── processed_hashes.json  # Cache de documentos processados
+└── patients.json          # Registro de pacientes
 ```
 
 **Exemplo:**
 ```bash
 # Se você usa --output ~/clinikondo/saida
 ~/clinikondo/saida/.clinikondo/processed_hashes.json
+~/clinikondo/saida/.clinikondo/patients.json
 ```
 
 ### **💰 Benefícios:**
@@ -383,6 +386,169 @@ python -m src.clinikondo processar \
 - ⚡ **Performance**: Modelos especializados para cada tarefa
 - 🎯 **Qualidade**: Melhor modelo Vision para OCR, melhor modelo geral para classificação
 
+## 🧑‍⚕️ Gerenciamento de Pacientes
+
+CliniKondo mantém um **registro inteligente de pacientes** com funcionalidades avançadas de reconciliação de nomes, detecção de duplicatas e aliases.
+
+### **📍 Localização do Registro:**
+
+```
+~/seu_diretorio_saida/.clinikondo/patients.json
+```
+
+### **🎯 Funcionalidades Automáticas:**
+
+1. **Identificação Inteligente**
+   - LLM extrai nome do paciente do documento
+   - Sistema busca paciente existente (match exato ou fuzzy)
+   - Se não encontrado, cria automaticamente
+
+2. **Fuzzy Matching** (threshold 0.9)
+   - "João Silva" → "Joao da Silva" ✅
+   - "Maria Santos" → "Maria S. Santos" ✅
+   - Ignora acentos, pontuação e espaços extras
+
+3. **Sistema de Aliases**
+   - "João" pode ser alias de "João Pedro Silva"
+   - Útil para nomes informais ou abreviados
+   - Conflitos são detectados automaticamente
+
+### **📋 Comandos CLI:**
+
+#### **Listar Pacientes**
+```bash
+python -m src.clinikondo listar-pacientes \
+  --output ~/clinikondo/saida
+```
+
+**Saída:**
+```
+📋 Pacientes cadastrados:
+  • João Silva (joao-silva) - 12 documentos
+  • Maria Santos (maria-santos) - 8 documentos
+  • Pedro Oliveira (pedro-oliveira) - 5 documentos
+```
+
+#### **Adicionar Paciente Manualmente**
+```bash
+python -m src.clinikondo pacientes adicionar \
+  --output ~/clinikondo/saida \
+  --nome "Ana Carolina Mendes" \
+  --genero feminino
+```
+
+#### **Editar Paciente**
+```bash
+# Editar nome
+python -m src.clinikondo pacientes editar \
+  --output ~/clinikondo/saida \
+  --slug ana-carolina-mendes \
+  --nome "Ana Carolina Mendes Ferreira"
+
+# Adicionar alias
+python -m src.clinikondo pacientes editar \
+  --output ~/clinikondo/saida \
+  --slug ana-carolina-mendes \
+  --adicionar-alias "Ana" \
+  --adicionar-alias "Carol"
+
+# Alterar gênero
+python -m src.clinikondo pacientes editar \
+  --output ~/clinikondo/saida \
+  --slug ana-carolina-mendes \
+  --genero feminino
+```
+
+#### **Detectar Pacientes Duplicados**
+```bash
+python -m src.clinikondo pacientes detectar-duplicatas \
+  --output ~/clinikondo/saida \
+  --threshold 0.85
+```
+
+**Saída:**
+```
+🔍 Possíveis duplicatas detectadas:
+
+  ⚠️  João Silva ↔️ Joao da Silva (similaridade: 92%)
+  ⚠️  Maria Santos ↔️ M. Santos (similaridade: 87%)
+  
+💡 Use 'pacientes fusionar' para mesclar duplicatas
+```
+
+#### **Fusionar (Mesclar) Pacientes Duplicados**
+```bash
+python -m src.clinikondo pacientes fusionar \
+  --output ~/clinikondo/saida \
+  --source joao-da-silva \
+  --target joao-silva
+```
+
+**Resultado:**
+- Todos os aliases do paciente `source` são movidos para `target`
+- Nome completo do `source` vira alias do `target`
+- Paciente `source` é removido
+- Documentos **NÃO** são movidos automaticamente
+
+#### **Remover Paciente**
+```bash
+python -m src.clinikondo pacientes remover \
+  --output ~/clinikondo/saida \
+  --slug joao-silva
+```
+
+⚠️ **Atenção**: Remove apenas do registro. Documentos na pasta permanecem intactos.
+
+### **📊 Estrutura do Registro (`patients.json`):**
+
+```json
+[
+  {
+    "nome_completo": "João Silva Santos",
+    "slug_diretorio": "joao-silva-santos",
+    "nomes_alternativos": ["João Silva", "João", "J. Santos"],
+    "genero": "masculino"
+  },
+  {
+    "nome_completo": "Maria Carolina Mendes",
+    "slug_diretorio": "maria-carolina-mendes",
+    "nomes_alternativos": ["Maria", "Carol"],
+    "genero": "feminino"
+  }
+]
+```
+
+### **🔍 Como Funciona a Identificação:**
+
+```
+1. LLM extrai: "Paciente: João da Silva"
+   ↓
+2. Normaliza: "joao da silva"
+   ↓
+3. Busca exata: NÃO encontrado
+   ↓
+4. Fuzzy match (0.9): "joão silva santos" → 92% similar
+   ↓
+5. Match encontrado! ✅
+   ↓
+6. Documento salvo em: joao-silva-santos/exames/
+```
+
+### **💡 Boas Práticas:**
+
+- **Use aliases** para nomes informais: "João" → alias de "João Pedro Silva"
+- **Detecte duplicatas** periodicamente: `pacientes detectar-duplicatas`
+- **Revise fuzzy matches** nos logs para garantir precisão
+- **Adicione gênero** para melhor organização de documentos
+- **Não delete manualmente** `patients.json` - use comandos CLI
+
+### **⚠️ Importante:**
+
+- Registro é **específico por pasta de saída** (`--output`)
+- Slugs são únicos e imutáveis (base para nome de diretórios)
+- Conflitos de alias são bloqueados automaticamente
+- Fusão de pacientes **NÃO move** documentos entre pastas
+
 ## 📁 Estrutura de Saída
 
 **Padrão de Nomenclatura:** `AAAA-MM-DD-nome_paciente-tipo-especialidade-descricao.ext`
@@ -477,6 +643,27 @@ python -m src.clinikondo processar \
   --output ~/clinikondo/saida \
   --model gpt-4-turbo \
   --force-reprocess  # Ignora cache de duplicatas
+```
+
+### **5. Gerenciar Pacientes**
+```bash
+# Listar todos os pacientes
+python -m src.clinikondo listar-pacientes --output ~/clinikondo/saida
+
+# Detectar duplicatas
+python -m src.clinikondo pacientes detectar-duplicatas --output ~/clinikondo/saida
+
+# Adicionar alias a paciente existente
+python -m src.clinikondo pacientes editar \
+  --output ~/clinikondo/saida \
+  --slug joao-silva \
+  --adicionar-alias "João"
+
+# Fusionar pacientes duplicados
+python -m src.clinikondo pacientes fusionar \
+  --output ~/clinikondo/saida \
+  --source joao-da-silva \
+  --target joao-silva
 ```
 
 ## 📖 Logs e Monitoramento
