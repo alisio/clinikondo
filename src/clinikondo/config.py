@@ -68,6 +68,7 @@ class Config:
     executar_copia_apos_erro: bool = False
     log_nivel: str = "info"
     dry_run: bool = False
+    force_reprocess: bool = False  # Flag para forçar reprocessamento ignorando duplicatas
     ocr_strategy: str = "hybrid"  # hybrid, multimodal, traditional
     # Multi-model configuration (SRS v2.0)
     ocr_model: str | None = None  # Se None, usa modelo_llm
@@ -110,6 +111,11 @@ class Config:
     @property
     def patients_storage_path(self) -> Path:
         return self.state_dir / "patients.json"
+    
+    @property
+    def processed_hashes_path(self) -> Path:
+        """Caminho para arquivo de hashes processados."""
+        return self.state_dir / "processed_hashes.json"
     
     # Propriedades com fallback para multi-model (SRS v2.0)
     @property
@@ -217,6 +223,11 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
     )
     log_nivel = args.log_level or env.get("CLINIKONDO_LOG_LEVEL", "info")
     dry_run = args.dry_run or _bool_from_env(env.get("CLINIKONDO_DRY_RUN"), False)
+    force_reprocess = (
+        args.force_reprocess
+        if hasattr(args, 'force_reprocess') and args.force_reprocess
+        else _bool_from_env(env.get("CLINIKONDO_FORCE_REPROCESS"), False)
+    )
     ocr_strategy = (
         args.ocr_strategy
         if hasattr(args, 'ocr_strategy') and args.ocr_strategy
@@ -274,6 +285,7 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
         executar_copia_apos_erro=executar_copia_apos_erro,
         log_nivel=log_nivel,
         dry_run=dry_run,
+        force_reprocess=force_reprocess,
         ocr_strategy=ocr_strategy,
         ocr_model=ocr_model,
         ocr_api_key=ocr_api_key,

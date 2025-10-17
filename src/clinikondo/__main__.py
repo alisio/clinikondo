@@ -120,6 +120,7 @@ def build_parser() -> argparse.ArgumentParser:
     processar_parser.add_argument("--classification-api-base", help="Endpoint API para classificação (opcional, fallback: --api-base)")
     processar_parser.add_argument("--log-level", help="Nível de log (debug, info, warning, error)")
     processar_parser.add_argument("--dry-run", action="store_true", help="Simula sem mover arquivos")
+    processar_parser.add_argument("--force-reprocess", action="store_true", help="Força reprocessamento ignorando duplicatas por hash")
     processar_parser.add_argument("--match-patient", action=argparse.BooleanOptionalAction, default=None)
     processar_parser.add_argument("--create-patient", action=argparse.BooleanOptionalAction, default=None)
     processar_parser.add_argument("--move-to-shared", action=argparse.BooleanOptionalAction, default=None)

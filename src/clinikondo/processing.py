@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Iterable, List
 
 from .config import Config
+from .hash_tracker import HashTracker
 from .llm import BaseExtractor
 from .models import Document, DocumentProcessingError
 from .patients import PatientRegistry
@@ -35,6 +36,7 @@ class DocumentProcessor:
         self.extractor = extractor
         self.patient_registry = patient_registry
         self.type_catalog = type_catalog
+        self.hash_tracker = HashTracker(config.processed_hashes_path)
 
     def collect_documents(self) -> List[Path]:
         documents: list[Path] = []
@@ -45,8 +47,31 @@ class DocumentProcessor:
 
     def process_all(self) -> List[Document]:
         processed: list[Document] = []
+        skipped_duplicates = 0
+        
         for path in self.collect_documents():
             LOGGER.info("Processando %s", path.name)
+            
+            # Verificar duplicata por hash (SRS 6.0 - Detecção de Duplicatas)
+            if not self.config.force_reprocess:
+                try:
+                    file_hash = self.hash_tracker.calculate_hash(path)
+                    if self.hash_tracker.is_processed(file_hash):
+                        existing_record = self.hash_tracker.get_record(file_hash)
+                        self.hash_tracker.log_duplicate_detection(
+                            file_hash=file_hash,
+                            arquivo_novo=str(path),
+                            arquivo_original=existing_record.arquivo_original,
+                            tipo_duplicata="hash_identico",
+                            acao="processamento_pulado",
+                            custo_economizado="1_chamada_llm"
+                        )
+                        LOGGER.info(f"⏭️  Arquivo duplicado detectado (hash: {file_hash[:12]}...) - pulando processamento")
+                        skipped_duplicates += 1
+                        continue
+                except Exception as e:
+                    LOGGER.warning(f"Erro ao calcular hash de {path}: {e}. Processando normalmente.")
+            
             try:
                 document = self._process_single(path)
                 processed.append(document)
@@ -54,7 +79,13 @@ class DocumentProcessor:
                 LOGGER.exception("Erro ao processar %s: %s", path.name, exc)
                 if self.config.executar_copia_apos_erro:
                     self._preserve_on_error(path)
+        
         self.patient_registry.save()
+        self.hash_tracker.save()
+        
+        if skipped_duplicates > 0:
+            LOGGER.info(f"📊 {skipped_duplicates} duplicata(s) ignorada(s), {len(processed)} documento(s) processado(s)")
+        
         return processed
 
     def _process_single(self, path: Path) -> Document:
@@ -65,7 +96,11 @@ class DocumentProcessor:
             LOGGER.warning(error_msg)
             raise DocumentProcessingError(error_msg)
         
+        # Calcular hash do arquivo (SRS 6.0 - Detecção de Duplicatas)
+        file_hash = self.hash_tracker.calculate_hash(path)
+        
         document = Document(caminho_entrada=path)
+        document.hash_sha256 = file_hash
         document.texto_extraido = self._extract_text(path)
         extractor_result = self.extractor.extract(
             document,
@@ -83,9 +118,34 @@ class DocumentProcessor:
         destination_dir = self._build_destination_dir(patient.slug_diretorio, doc_type.subpasta_destino, document)
         ensure_directory(destination_dir)
         destination_path = self._unique_destination(destination_dir / final_name)
+        
+        # Se nome foi alterado (duplicado), registrar no log (SRS 6.0 - Nome Duplicado)
+        if destination_path.name != final_name:
+            self.hash_tracker.log_duplicate_detection(
+                file_hash=file_hash,
+                arquivo_novo=str(path),
+                arquivo_original="N/A",
+                tipo_duplicata="nome_duplicado",
+                acao="versao_numerada_criada",
+                nome_original=final_name,
+                nome_versionado=destination_path.name,
+                hash_novo=file_hash,
+                hash_original="diferente"
+            )
+            LOGGER.info(f"📝 Nome duplicado: {final_name} → {destination_path.name}")
+        
         document.caminho_destino = destination_path
         if not self.config.dry_run:
             self._move_document(document.caminho_entrada, destination_path)
+            
+            # Registrar hash processado (SRS 6.0 - Rastreamento de Hashes)
+            self.hash_tracker.add_record(
+                file_hash=file_hash,
+                arquivo_original=str(path),
+                arquivo_destino=str(destination_path),
+                paciente_slug=patient.slug_diretorio,
+                tipo_documento=document.tipo_documento
+            )
         
         # Log adequado conforme a ação realizada
         if self.config.dry_run:
@@ -138,13 +198,17 @@ class DocumentProcessor:
         return full_name
 
     def _unique_destination(self, target: Path) -> Path:
+        """Gera nome único para arquivo, usando versão numerada se necessário (SRS 6.0).
+        
+        Formato: nome-arquivo_v2.ext, nome-arquivo_v3.ext, etc.
+        """
         if not target.exists():
             return target
         stem = target.stem
         suffix = target.suffix
-        counter = 1
+        counter = 2  # Começar em _v2
         while True:
-            candidate = target.with_name(f"{stem}-{counter}{suffix}")
+            candidate = target.with_name(f"{stem}_v{counter}{suffix}")
             if not candidate.exists():
                 return candidate
             counter += 1
