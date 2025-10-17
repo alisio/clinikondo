@@ -230,6 +230,30 @@ O sistema utiliza um prompt especializado que inclui:
 - **Autenticação**: API key obrigatória (mesmo "mock-key" para Ollama)
 - **Fallback**: Não há fallback - se LLM falhar, documento não é processado
 
+#### Configuração Multi-Modelo (Avançado)
+
+O sistema suporta **modelos separados** para OCR e classificação, permitindo otimização de custo e qualidade:
+
+**Comportamento de Fallback:**
+- Se `--ocr-model` não definido → usa `--model` (modelo principal)
+- Se `--classification-model` não definido → usa `--model` (modelo principal)
+- Se `--ocr-api-base` não definido → usa `--api-base` (endpoint principal)
+- Se `--classification-api-base` não definido → usa `--api-base` (endpoint principal)
+
+**Validações:**
+- `--model` é **sempre obrigatório** (modelo principal)
+- OCR multimodal valida se modelo tem capacidades Vision
+- Sistema registra nos logs qual modelo foi usado para cada tarefa
+
+**Casos de Uso:**
+
+| Cenário | Configuração | Objetivo |
+|---------|--------------|----------|
+| **Simples** | `--model gpt-4` | Mesmo modelo para tudo |
+| **Custo-Eficiente** | `--model gpt-3.5-turbo --ocr-model llama3.2-vision` | OCR local grátis |
+| **Máxima Qualidade** | `--model gpt-4 --ocr-model gpt-4o` | Melhor modelo para cada tarefa |
+| **Híbrido** | `--ocr-model llama3.2 --ocr-api-base localhost:11434` | OCR local + classificação cloud |
+
 ---
 
 ## 💻 Interface de Linha de Comando
@@ -245,6 +269,12 @@ python -m src.clinikondo processar \
   --model gpt-4 \
   [--api-key <key>] \
   [--api-base <url>] \
+  [--ocr-model <model>] \
+  [--ocr-api-key <key>] \
+  [--ocr-api-base <url>] \
+  [--classification-model <model>] \
+  [--classification-api-key <key>] \
+  [--classification-api-base <url>] \
   [--temperature 0.3] \
   [--max-tokens 1024] \
   [--timeout 30] \
@@ -261,6 +291,7 @@ python -m src.clinikondo processar \
 - Classifica via LLM com retry inteligente
 - Organiza em estrutura hierárquica
 - Preserva originais por padrão
+- Suporta modelos e endpoints separados para OCR e classificação (opcional)
 
 #### 2. **`listar-pacientes`** - Gestão de Pacientes
 
@@ -386,9 +417,15 @@ python -m src.clinikondo gerenciar-pacientes detectar-duplicatas \
 |-----------|------|--------|-----------|
 | `--input` | path | - | **Obrigatório**: Pasta de documentos |
 | `--output` | path | - | **Obrigatório**: Pasta de destino |
-| `--model` | string | `gpt-4` | Modelo LLM |
-| `--api-key` | string | `$OPENAI_API_KEY` | Chave da API |
-| `--api-base` | url | OpenAI oficial | Endpoint personalizado |
+| `--model` | string | `gpt-4` | **Obrigatório**: Modelo LLM principal |
+| `--api-key` | string | `$OPENAI_API_KEY` | Chave da API principal |
+| `--api-base` | url | OpenAI oficial | Endpoint principal personalizado |
+| `--ocr-model` | string | `None` | Modelo LLM para OCR (fallback: `--model`) |
+| `--ocr-api-key` | string | `None` | Chave da API OCR (fallback: `--api-key`) |
+| `--ocr-api-base` | url | `None` | Endpoint OCR (fallback: `--api-base`) |
+| `--classification-model` | string | `None` | Modelo para classificação (fallback: `--model`) |
+| `--classification-api-key` | string | `None` | Chave API classificação (fallback: `--api-key`) |
+| `--classification-api-base` | url | `None` | Endpoint classificação (fallback: `--api-base`) |
 | `--temperature` | float | `0.3` | Criatividade LLM (0.0-1.0) |
 | `--max-tokens` | int | `1024` | Limite de tokens |
 | `--timeout` | int | `30` | Timeout em segundos |
@@ -480,12 +517,38 @@ python -m src.clinikondo gerenciar-pacientes detectar-duplicatas \
 - **Cache de Fuzzy Matching**: Evita recálculos desnecessários
 - **Processamento Streaming**: Não carrega arquivos grandes na memória
 - **Timeout Inteligente**: Ajuste automático baseado no tamanho do arquivo
+- **Modelos Especializados**: OCR e classificação podem usar modelos otimizados separadamente
 
 #### Limites Operacionais
 - **Arquivo Individual**: 50MB máximo
 - **Lote de Processamento**: Ilimitado (processamento sequencial)
 - **Tentativas LLM**: 3 máximo por documento
 - **Timeout LLM**: 30s configurável
+
+### 🎯 5. Configuração Multi-Modelo
+
+#### Regras de Fallback
+1. **Modelo Principal Obrigatório**: `--model` deve sempre ser especificado
+2. **Fallback Inteligente OCR**: Se `--ocr-model` não definido, usa `--model`
+3. **Fallback Inteligente Classificação**: Se `--classification-model` não definido, usa `--model`
+4. **Endpoints Independentes**: Cada modelo pode ter seu próprio endpoint
+5. **API Keys Separadas**: Suporta diferentes credenciais para cada serviço
+
+#### Validações Multi-Modelo
+- **Validação Vision**: OCR multimodal valida que modelo tem capacidades Vision
+- **Compatibilidade API**: Endpoints devem ser OpenAI-compatible
+- **Credenciais**: Valida que API keys estão corretas para cada endpoint
+- **Logs Detalhados**: Sistema registra qual modelo foi usado para cada operação
+
+#### Matriz de Configurações Válidas
+
+| Configuração | OCR Usa | Classificação Usa | Válido? | Caso de Uso |
+|-------------|---------|------------------|---------|-------------|
+| `--model gpt-4` | gpt-4 | gpt-4 | ✅ | Configuração simples |
+| `--model gpt-4 --ocr-model llama3.2-vision` | llama3.2-vision | gpt-4 | ✅ | OCR local, classificação cloud |
+| `--model gpt-3.5 --classification-model gpt-4` | gpt-3.5 | gpt-4 | ✅ | OCR rápido, classificação precisa |
+| `--ocr-model X` (sem --model) | - | - | ❌ | Modelo principal obrigatório |
+| `--model gpt-3.5 --ocr-strategy multimodal` | gpt-3.5 | gpt-3.5 | ⚠️ | Valida se gpt-3.5 tem Vision |
 
 ---
 
@@ -532,6 +595,39 @@ python -m src.clinikondo gerenciar-pacientes detectar-duplicatas \
 - ✅ Extração + classificação simultânea
 - ✅ Metadados estruturados extraídos
 - ✅ Log com método "ocr_multimodal"
+
+### 📊 Caso de Uso 1.2: Otimização de Custo com Modelos Separados
+
+**Ator**: Usuário consciente de custos com lote grande de documentos  
+**Objetivo**: Processar documentos minimizando custos de API usando modelo local para OCR  
+
+| Etapa | Ação do Sistema | Resultado Esperado |
+|-------|----------------|-------------------|
+| **1. Configuração** | Usuário define `--ocr-model llama3.2-vision --ocr-api-base localhost:11434 --classification-model gpt-3.5-turbo` | Dois modelos configurados: local OCR + cloud classificação |
+| **2. Validação** | Verificar que modelo OCR local suporta Vision | Validação bem-sucedida |
+| **3. Processamento OCR** | Aplicar llama3.2-vision local para extração | OCR gratuito, sem custos API |
+| **4. Classificação** | Usar gpt-3.5-turbo (OpenAI) para metadados | Custo reduzido vs gpt-4 |
+| **5. Logs** | Registrar uso de modelos separados | Log indica "ocr: llama3.2-vision, classification: gpt-3.5-turbo" |
+| **6. Custo Total** | Calcular economia vs modelo único | ~90% economia vs usar gpt-4 para tudo |
+
+**Critérios de Aceitação**:
+- ✅ Fallback funciona corretamente quando modelo não especificado
+- ✅ Logs indicam claramente qual modelo usou cada tarefa
+- ✅ Economia de custo mensurável
+- ✅ Qualidade mantida acima de 90%
+
+**Exemplo de Comando:**
+```bash
+python -m src.clinikondo processar \
+  --input ~/docs \
+  --output ~/saida \
+  --model gpt-3.5-turbo \
+  --api-key sk-xxx \
+  --ocr-model llama3.2-vision \
+  --ocr-api-base http://localhost:11434/v1 \
+  --ocr-api-key mock-key \
+  --ocr-strategy multimodal
+```
 
 ### �👥 Caso de Uso 2: Gestão de Pacientes com Fuzzy Matching
 
@@ -629,8 +725,10 @@ python -m src.clinikondo gerenciar-pacientes detectar-duplicatas \
     "qualidade_ocr": "boa"
   },
   "processamento_llm": {
-    "modelo": "gpt-4-vision-preview",
-    "api_endpoint": "https://api.openai.com/v1/chat/completions",
+    "modelo_ocr": "llama3.2-vision",
+    "modelo_classificacao": "gpt-4",
+    "ocr_api_endpoint": "http://localhost:11434/v1/chat/completions",
+    "classificacao_api_endpoint": "https://api.openai.com/v1/chat/completions",
     "temperatura": 0.3,
     "max_tokens": 1024,
     "timeout_segundos": 30,
@@ -802,18 +900,28 @@ src/clinikondo/
 #### Variáveis de Ambiente
 
 ```bash
-# OpenAI (Obrigatório)
+# Configuração Modelo Único (Simples)
 export OPENAI_API_KEY="sk-..."
 export OPENAI_API_BASE="https://api.openai.com/v1"  # Opcional
+export CLINIKONDO_MODEL="gpt-4"
 
-# Ollama Local
+# Configuração Multi-Modelo (Avançado)
+export OPENAI_API_KEY="sk-..."  # Para classificação
+export CLINIKONDO_MODEL="gpt-3.5-turbo"
+export CLINIKONDO_OCR_MODEL="llama3.2-vision"
+export CLINIKONDO_OCR_API_BASE="http://localhost:11434/v1"
+export CLINIKONDO_OCR_API_KEY="mock-key"
+
+# Ollama Local (Modelo Único)
 export OPENAI_API_KEY="mock-key"  # Qualquer valor
 export OPENAI_API_BASE="http://localhost:11434/v1"
+export CLINIKONDO_MODEL="mistral-small3.1:24b"
 
 # Configurações Opcionais
 export CLINIKONDO_LOG_LEVEL="info"
 export CLINIKONDO_TIMEOUT="30"
 export CLINIKONDO_TEMPERATURE="0.3"
+export CLINIKONDO_OCR_STRATEGY="hybrid"
 ```
 
 #### Tesseract OCR
