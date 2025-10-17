@@ -13,7 +13,7 @@ Com leveza, humor e método, CliniKondo organiza os documentos médicos da sua f
 **Sistema de linha de comando (CLI)** multiplataforma com arquitetura moderna para:
 
 - 🤖 **Classificação automática** de documentos médicos via LLM (OpenAI/Ollama)  
-- 🔍 **OCR inteligente** para PDFs escaneados e imagens médicas
+- 🔍 **OCR inteligente** para PDFs escaneados e imagens médicas (tradicional ou multimodal)
 - 📁 **Organização hierárquica** por paciente, tipo e especialidade
 - 👥 **Sistema avançado de pacientes** com fuzzy matching e aliases
 - 🛡️ **Validações robustas** com correção automática de problemas
@@ -57,12 +57,15 @@ graph TD
     
     I --> N[PyMuPDF]
     I --> O[Tesseract]
+    I --> P[LLM Multimodal]
+    
+    P --> Q[OpenAI Vision API]
 ```
 
 ### 🎯 Fluxo de Processamento
 
 1. **Validação de Entrada** → Tamanho, formato, caracteres seguros
-2. **Extração de Texto** → PyPDF2 ou OCR automático (PyMuPDF + Tesseract)
+2. **Extração de Texto** → PyPDF2 ou OCR automático (PyMuPDF + Tesseract ou LLM multimodal)
 3. **Processamento LLM** → Classificação via prompt estruturado
 4. **Reconciliação de Paciente** → Fuzzy matching ou criação automática
 5. **Organização Final** → Renomeação, estrutura hierárquica, cópia/movimento
@@ -80,8 +83,8 @@ graph TD
 | `formato` | enum | ✅ | Extensão (.pdf, .png, .jpg, .jpeg, .tif, .tiff, .heic, .txt) |
 | `tamanho_bytes` | int | ✅ | Tamanho do arquivo (máx: 50MB) |
 | `hash_sha256` | string | ✅ | Hash para detecção de duplicatas |
-| `texto_extraido` | string | ✅ | Texto via PyPDF2 ou OCR |
-| `metodo_extracao` | enum | ✅ | "pypdf2", "ocr", "texto_direto" |
+| `texto_extraido` | string | ✅ | Texto via PyPDF2, OCR tradicional ou multimodal |
+| `metodo_extracao` | enum | ✅ | "pypdf2", "ocr_traditional", "ocr_multimodal" |
 | `ocr_aplicado` | bool | ✅ | Se OCR foi necessário |
 | `paginas_processadas` | int | ❌ | Número de páginas (PDFs) |
 | `chars_extraidos` | int | ✅ | Caracteres de texto extraídos |
@@ -214,6 +217,12 @@ O sistema utiliza um prompt especializado que inclui:
 - **Formato de resposta** em JSON estruturado
 - **Exemplos** de classificação correta
 
+#### Estratégias de OCR
+
+- **Traditional**: OCR via Tesseract (PyMuPDF + pytesseract)
+- **Multimodal**: OCR via LLM multimodal (ex: GPT-4 Vision)
+- **Hybrid**: PyPDF2 → (falha) → Multimodal → (falha) → Traditional
+
 #### Configuração LLM
 
 - **Obrigatório**: Sistema não funciona sem LLM configurado
@@ -239,6 +248,7 @@ python -m src.clinikondo processar \
   [--temperature 0.3] \
   [--max-tokens 1024] \
   [--timeout 30] \
+  [--ocr-strategy hybrid|multimodal|traditional] \
   [--dry-run] \
   [--mover] \
   [--log-level info]
@@ -247,7 +257,7 @@ python -m src.clinikondo processar \
 **Funcionalidades**:
 - Processa todos os arquivos da pasta input
 - Aplica validações robustas
-- Extrai texto via PyPDF2 ou OCR automático
+- Extrai texto via PyPDF2 ou OCR automático (tradicional ou multimodal)
 - Classifica via LLM com retry inteligente
 - Organiza em estrutura hierárquica
 - Preserva originais por padrão
@@ -382,6 +392,7 @@ python -m src.clinikondo gerenciar-pacientes detectar-duplicatas \
 | `--temperature` | float | `0.3` | Criatividade LLM (0.0-1.0) |
 | `--max-tokens` | int | `1024` | Limite de tokens |
 | `--timeout` | int | `30` | Timeout em segundos |
+| `--ocr-strategy` | enum | `hybrid` | Estratégia de OCR (hybrid, multimodal, traditional) |
 | `--dry-run` | flag | `false` | Modo simulação |
 | `--mover` | flag | `false` | Move em vez de copiar |
 | `--log-level` | enum | `info` | debug, info, warning, error |
@@ -402,8 +413,10 @@ python -m src.clinikondo gerenciar-pacientes detectar-duplicatas \
 
 2. **Extração de Texto**
    - **PDFs com texto**: PyPDF2 extração direta
-   - **PDFs escaneados**: OCR automático (PyMuPDF → imagem → Tesseract)
-   - **Imagens**: OCR direto via Tesseract
+   - **PDFs escaneados/imagens**: OCR conforme estratégia definida
+     - **Traditional**: PyMuPDF + Tesseract
+     - **Multimodal**: LLM multimodal via endpoint OpenAI
+     - **Hybrid**: PyPDF2 → (falha) → Multimodal → (falha) → Traditional
    - **Arquivos de texto**: Leitura direta UTF-8
 
 3. **Classificação LLM**
@@ -499,7 +512,28 @@ python -m src.clinikondo gerenciar-pacientes detectar-duplicatas \
 - ✅ Estrutura hierárquica criada
 - ✅ Log completo gerado
 
-### 👥 Caso de Uso 2: Gestão de Pacientes com Fuzzy Matching
+### � Caso de Uso 1.1: Processamento com OCR Multimodal
+
+**Ator**: Usuário com documentos médicos escaneados complexos  
+**Objetivo**: Processar documentos com OCR multimodal para máxima precisão  
+
+| Etapa | Ação do Sistema | Resultado Esperado |
+|-------|----------------|-------------------|
+| **1. Preparação** | Validar configuração LLM e definir `--ocr-strategy multimodal` | Configuração válida, estratégia multimodal ativada |
+| **2. Descoberta** | Escanear pasta input recursivamente | Lista de 50 arquivos escaneados encontrados |
+| **3. Validação** | Verificar cada arquivo individualmente | 48 válidos, 2 rejeitados (corrompidos) |
+| **4. Processamento** | Extrair texto via LLM multimodal (endpoint OpenAI) | Texto extraído com metadados simultâneos |
+| **5. Classificação** | Usar dados já extraídos do multimodal | 47 classificados, 1 falhou |
+| **6. Organização** | Criar estrutura por paciente/tipo | 3 pacientes, 6 tipos de documento |
+| **7. Relatório** | Gerar estatísticas finais | 98.0% de sucesso, 8min processamento |
+
+**Critérios de Aceitação**:
+- ✅ Taxa de sucesso ≥ 95%
+- ✅ Extração + classificação simultânea
+- ✅ Metadados estruturados extraídos
+- ✅ Log com método "ocr_multimodal"
+
+### �👥 Caso de Uso 2: Gestão de Pacientes com Fuzzy Matching
 
 **Ator**: Usuário com documentos de nomes inconsistentes  
 **Objetivo**: Unificar documentos de mesmo paciente com nomes variados  
@@ -583,11 +617,11 @@ python -m src.clinikondo gerenciar-pacientes detectar-duplicatas \
     }
   },
   "extracao_texto": {
-    "metodo_utilizado": "ocr",
+    "metodo_utilizado": "ocr_multimodal",
     "pypdf2_tentado": true,
     "pypdf2_chars_extraidos": 0,
     "ocr_aplicado": true,
-    "ocr_engine": "tesseract",
+    "ocr_engine": "gpt-4-vision-preview",
     "ocr_idioma": "por",
     "paginas_processadas": 3,
     "chars_totais_extraidos": 1247,
@@ -595,8 +629,8 @@ python -m src.clinikondo gerenciar-pacientes detectar-duplicatas \
     "qualidade_ocr": "boa"
   },
   "processamento_llm": {
-    "modelo": "gpt-oss:20b",
-    "api_endpoint": "http://localhost:11434/v1",
+    "modelo": "gpt-4-vision-preview",
+    "api_endpoint": "https://api.openai.com/v1/chat/completions",
     "temperatura": 0.3,
     "max_tokens": 1024,
     "timeout_segundos": 30,
@@ -690,6 +724,7 @@ python -m src.clinikondo verificar-duplicatas \
 |-----------|----------------------|--------|
 | **Extração LLM** | 100% dos processamentos usam LLM (sem fallback) | ✅ |
 | **OCR Automático** | 100% dos PDFs escaneados processados automaticamente | ✅ |
+| **OCR Multimodal** | Suporte a estratégia multimodal via endpoint OpenAI | ✅ |
 | **Classificação** | ≥ 90% dos documentos corretamente classificados | ✅ |
 | **Fuzzy Matching** | ≥ 95% de acurácia na identificação de pacientes | ✅ |
 | **Preservação** | 100% dos originais preservados (modo padrão) | ✅ |
@@ -927,13 +962,13 @@ def custom_validator(file_path: Path) -> List[str]:
 
 ### 🎉 Status de Implementação: **COMPLETO**
 
-O **CliniKondo v2.0** está totalmente implementado e operacional, atendendo a 100% dos requisitos especificados neste SRS.
+O **CliniKondo v2.0** está totalmente implementado e operacional, atendendo a 100% dos requisitos especificados neste SRS, incluindo suporte a OCR multimodal via endpoint OpenAI compatível.
 
 #### ✅ Funcionalidades Entregues
 
 - **7 comandos CLI** avançados totalmente funcionais
 - **Sistema LLM** exclusivo com suporte OpenAI/Ollama
-- **OCR automático** para PDFs escaneados via Tesseract
+- **OCR automático** para PDFs escaneados via Tesseract e multimodal
 - **Fuzzy matching** inteligente para reconciliação de pacientes
 - **Validações robustas** com correção automática
 - **Detecção de duplicatas** por hash SHA-256
