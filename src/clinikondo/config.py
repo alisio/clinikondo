@@ -12,6 +12,34 @@ DEFAULT_MODEL = "gpt-4"
 DEFAULT_PROMPT_FILENAME = "prompt_base.txt"
 
 
+def validate_expanded_path(path: Path) -> Path:
+    """Valida um caminho após expansão, prevenindo ataques de path traversal.
+    
+    Args:
+        path: Caminho expandido a ser validado
+        
+    Returns:
+        Path: O caminho validado
+        
+    Raises:
+        ValueError: Se o caminho contiver componentes perigosos
+    """
+    resolved = path.resolve()
+    
+    # Verificar se contém '..' após resolução
+    if '..' in resolved.parts:
+        raise ValueError(f"Caminho expandido contém '..' (traversal): {path}")
+    
+    # Verificar se não aponta para arquivos/diretórios do sistema
+    system_paths = ['/etc', '/usr', '/bin', '/sbin', '/var', '/root', '/boot', '/sys', '/proc']
+    str_resolved = str(resolved)
+    for sys_path in system_paths:
+        if str_resolved.startswith(sys_path):
+            raise ValueError(f"Caminho aponta para diretório do sistema: {path}")
+    
+    return path
+
+
 def _bool_from_env(value: str | None, default: bool) -> bool:
     if value is None:
         return default
@@ -120,7 +148,10 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
     env = os.environ
 
     input_dir = Path(args.input or env.get("CLINIKONDO_INPUT_DIR", ".")).expanduser()
+    validate_expanded_path(input_dir)
+    
     output_dir = Path(args.output or env.get("CLINIKONDO_OUTPUT_DIR", "./output")).expanduser()
+    validate_expanded_path(output_dir)
 
     modelo_llm = args.model or env.get("CLINIKONDO_MODEL", DEFAULT_MODEL)
     openai_api_key = args.api_key or env.get("OPENAI_API_KEY")
@@ -137,6 +168,8 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
     )
     prompt_template = args.prompt_template or env.get("CLINIKONDO_PROMPT_TEMPLATE")
     prompt_template_path = Path(prompt_template).expanduser() if prompt_template else None
+    if prompt_template_path:
+        validate_expanded_path(prompt_template_path)
     match_nome_paciente_auto = (
         args.match_patient
         if args.match_patient is not None

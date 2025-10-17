@@ -11,7 +11,7 @@ def build_config(input_dir: Path, output_dir: Path, **overrides):
         input_dir=input_dir,
         output_dir=output_dir,
         modelo_llm="gpt-4",
-        openai_api_key=None,
+        openai_api_key="mock-api-key-for-tests",
         openai_api_base=None,
         llm_temperature=0.2,
         llm_max_tokens=512,
@@ -22,7 +22,7 @@ def build_config(input_dir: Path, output_dir: Path, **overrides):
         executar_copia_apos_erro=False,
         log_nivel="warning",
         dry_run=False,
-        estrategia_extracao="heuristico",
+        ocr_strategy="hybrid",
     )
     for key, value in overrides.items():
         setattr(config, key, value)

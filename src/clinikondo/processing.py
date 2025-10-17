@@ -13,7 +13,7 @@ from .llm import BaseExtractor
 from .models import Document, DocumentProcessingError
 from .patients import PatientRegistry
 from .types import DocumentTypeCatalog
-from .utils import ensure_directory, sanitize_token, short_description, slugify
+from .utils import ensure_directory, sanitize_token, short_description, slugify, validate_safe_path
 
 LOGGER = logging.getLogger(__name__)
 
@@ -150,6 +150,9 @@ class DocumentProcessor:
 
     def _move_document(self, source: Path, destination: Path) -> None:
         """Move ou copia o documento conforme configuração."""
+        # Validar caminho de destino para prevenir traversal
+        validate_safe_path(destination, self.config.output_dir)
+        
         if self.config.mover_arquivo_original:
             # Move o arquivo (deleta original)
             shutil.move(source, destination)
@@ -165,6 +168,10 @@ class DocumentProcessor:
         while destino.exists():
             destino = destino_base / f"{source.stem}-{counter}{source.suffix}"
             counter += 1
+        
+        # Validar caminho de destino para prevenir traversal
+        validate_safe_path(destino, self.config.output_dir)
+        
         shutil.copy2(source, destino)
 
     def _extract_text(self, path: Path) -> str:
@@ -313,12 +320,20 @@ class DocumentProcessor:
             LOGGER.debug("Bibliotecas necessárias para OCR multimodal não instaladas")
             raise RuntimeError("Bibliotecas necessárias para OCR multimodal não instaladas")
         
-        if not self.config.openai_api_key:
+        # Validar segurança da transmissão de dados médicos
+        api_base = self.config.effective_ocr_api_base or "https://api.openai.com/v1"
+        if not api_base.startswith("https://"):
+            raise RuntimeError(
+                f"Transmissão insegura detectada: API base deve usar HTTPS para proteger dados médicos. "
+                f"URL atual: {api_base}. Configure uma URL HTTPS segura."
+            )
+        
+        if not self.config.effective_ocr_api_key:
             raise RuntimeError("API key não configurada para OCR multimodal")
         
         client = OpenAI(
-            api_key=self.config.openai_api_key,
-            base_url=self.config.openai_api_base
+            api_key=self.config.effective_ocr_api_key,
+            base_url=api_base
         )
         
         text_parts: list[str] = []

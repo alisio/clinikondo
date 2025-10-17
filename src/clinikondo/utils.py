@@ -88,3 +88,38 @@ def enforce_length(value: str, *, max_length: int) -> str:
         return value
     return value[: max_length - 3] + "..."
 
+
+def validate_safe_path(path: Path, base_dir: Path | None = None) -> None:
+    """Valida se um caminho é seguro e não permite traversal de diretório.
+
+    Args:
+        path: Caminho a ser validado
+        base_dir: Diretório base permitido (opcional)
+
+    Raises:
+        ValueError: Se o caminho for inseguro
+    """
+    # Resolver o caminho absoluto
+    resolved = path.resolve()
+
+    # Verificar se contém componentes perigosos (..)
+    parts = resolved.parts
+    if ".." in parts:
+        raise ValueError(f"Caminho contém '..' (traversal): {path}")
+
+    # Se base_dir fornecido, verificar se está dentro dele
+    if base_dir:
+        base_resolved = base_dir.resolve()
+        try:
+            resolved.relative_to(base_resolved)
+        except ValueError:
+            raise ValueError(f"Caminho fora do diretório base: {path} (base: {base_dir})")
+
+    # Verificar se não é um link simbólico perigoso (opcional, mas recomendado)
+    if path.is_symlink():
+        target = path.readlink()
+        if target.is_absolute() and not str(target).startswith(
+            str(base_dir or Path.home())
+        ):
+            raise ValueError(f"Link simbólico aponta para local não permitido: {path} -> {target}")
+

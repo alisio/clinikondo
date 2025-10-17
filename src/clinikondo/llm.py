@@ -16,6 +16,71 @@ from .types import DocumentTypeCatalog
 
 LOGGER = logging.getLogger(__name__)
 
+# Schema JSON para validação de respostas do LLM
+LLM_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "nome_paciente": {"type": ["string", "null"]},
+        "data_documento": {"type": ["string", "null"]},
+        "tipo_documento": {"type": ["string", "null"]},
+        "especialidade": {"type": ["string", "null"]},
+        "descricao_curta": {"type": ["string", "null"]},
+    },
+    "required": ["nome_paciente", "data_documento", "tipo_documento", "especialidade", "descricao_curta"],
+    "additionalProperties": False
+}
+
+
+def validate_llm_response(data: Dict[str, Any]) -> None:
+    """Valida resposta do LLM contra schema para prevenir injeção.
+    
+    Args:
+        data: Dados JSON a serem validados
+        
+    Raises:
+        ValueError: Se os dados não conformarem ao schema
+    """
+    # Validação básica de tipo
+    if not isinstance(data, dict):
+        raise ValueError("Resposta do LLM deve ser um objeto JSON")
+    
+    # Verificar campos obrigatórios
+    required_fields = ["nome_paciente", "data_documento", "tipo_documento", "especialidade", "descricao_curta"]
+    for field in required_fields:
+        if field not in data:
+            raise ValueError(f"Campo obrigatório ausente na resposta do LLM: {field}")
+    
+    # Validar tipos dos campos
+    if data.get("nome_paciente") is not None and not isinstance(data["nome_paciente"], str):
+        raise ValueError("nome_paciente deve ser string ou null")
+    if data.get("data_documento") is not None and not isinstance(data["data_documento"], str):
+        raise ValueError("data_documento deve ser string ou null")
+    if data.get("tipo_documento") is not None and not isinstance(data["tipo_documento"], str):
+        raise ValueError("tipo_documento deve ser string ou null")
+    if data.get("especialidade") is not None and not isinstance(data["especialidade"], str):
+        raise ValueError("especialidade deve ser string ou null")
+    if data.get("descricao_curta") is not None and not isinstance(data["descricao_curta"], str):
+        raise ValueError("descricao_curta deve ser string ou null")
+    
+    # Verificar campos adicionais não permitidos
+    allowed_fields = set(required_fields)
+    for key in data.keys():
+        if key not in allowed_fields:
+            raise ValueError(f"Campo não permitido na resposta do LLM: {key}")
+    
+    # Validações específicas de conteúdo
+    if data.get("tipo_documento") and data["tipo_documento"] not in [
+        "exame", "receita", "vacina", "controle", "contato", "laudo", "agenda", "documento"
+    ]:
+        raise ValueError(f"tipo_documento inválido: {data['tipo_documento']}")
+    
+    if data.get("especialidade") and data["especialidade"] not in [
+        "radiologia", "laboratorial", "cardiologia", "endocrinologia", 
+        "ginecologia", "clinica_geral", "dermatologia", "pediatria"
+    ]:
+        raise ValueError(f"especialidade inválida: {data['especialidade']}")
+
+
 DEFAULT_PROMPT = """
 Você é um assistente de IA especializado em interpretar documentos médicos digitalizados 
 (laudos, exames, receitas, formulários, etc.). 
@@ -157,6 +222,10 @@ class OpenAILLMExtractor(BaseExtractor):
             print(f"DEBUG: Conteúdo limpo: '{content}'")
 
             parsed = json.loads(content)
+            
+            # Validar resposta contra schema para prevenir injeção
+            validate_llm_response(parsed)
+            
             log_estruturado["sucesso"] = True
             log_estruturado["dados_extraidos"] = parsed
         except json.JSONDecodeError as exc:
