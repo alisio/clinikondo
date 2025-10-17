@@ -1,8 +1,18 @@
-# �✨ CliniKondo - O Assistente de Organização Médica
+# CliniKondo - O Assistente de Organização Médica ✨
 
 **CliniKondo** é o assistente que transforma o caos de exames, receitas e laudos em pura harmonia digital! 🎯
 
 Com leveza, humor e método, CliniKondo organiza os documentos médicos da sua família de forma inteligente — cada PDF encontra seu lugar perfeito e traz um pouco de alegria à pasta! Sistema de linha de comando (CLI) com IA que classifica automaticamente documentos médicos usando LLM, organizando em estrutura hierárquica por paciente e tipo.
+
+## 📋 Pré-requisitos
+
+- **Python**: 3.10 ou superior
+- **Sistema Operacional**: macOS, Linux ou Windows
+- **RAM**: 2GB mínimo (4GB recomendado)
+- **Espaço em Disco**: 100MB para a aplicação + espaço para documentos
+- **Conexão com Internet**: Necessária para APIs externas (OpenAI) ou opcional para Ollama local
+- **Dependências do Sistema** (opcional, para OCR tradicional):
+  - Tesseract OCR (apenas se usar `--ocr-strategy traditional`)
 
 ## ✨ Magia do CliniKondo
 
@@ -10,7 +20,7 @@ Com leveza, humor e método, CliniKondo organiza os documentos médicos da sua f
 - 🤖 **IA Especializada**: Utiliza exclusivamente LLM (OpenAI/Ollama) para classificação inteligente
 - 🏗️ **Estrutura Zen**: Cria hierarquia organizada `paciente/tipo_documento/arquivo_harmonioso.pdf`
 - 🔍 **Reconhecimento Mágico**: Identifica pacientes e metadados com precisão de IA
-- 🔄 **Persistência Gentil**: Até 3 tentativas suaves com timeout de 30s
+- 🔄 **Persistência Gentil**: Até 3 tentativas com timeout de 240s e delay de 30s entre tentativas
 - 📝 **Diário de Bordo**: Logging estruturado de toda a transformação
 - 💝 **Cuidado com Originais**: Preserva arquivos originais com carinho (padrão)
 
@@ -29,7 +39,7 @@ Com leveza, humor e método, CliniKondo organiza os documentos médicos da sua f
 
 ## 🏥 Especialidades que CliniKondo Reconhece
 
-`radiologia`, `laboratorial`, `cardiologia`, `endocrinologia`, `ginecologia`, `clinica_geral`, `dermatologia`, `pediatria`
+`radiologia`, `laboratorial`, `cardiologia`, `endocrinologia`, `ginecologia`, `clinica_geral`, `dermatologia`, `pediatria`, `oftalmologia`
 
 ## 📄 Formatos que Trazem Alegria ao CliniKondo
 
@@ -61,19 +71,24 @@ CliniKondo oferece **3 estratégias de OCR** para máxima flexibilidade:
 
 ```bash
 # Estratégia híbrida (padrão)
-python -m clinikondo processar \
-  --input docs/ --output saida/ \
+python -m src.clinikondo processar \
+  --input docs/ \
+  --output saida/ \
+  --model gpt-4 \
   --ocr-strategy hybrid
 
 # Estratégia multimodal (melhor qualidade)
-python -m clinikondo processar \
-  --input docs/ --output saida/ \
+python -m src.clinikondo processar \
+  --input docs/ \
+  --output saida/ \
   --model gpt-4-vision-preview \
   --ocr-strategy multimodal
 
 # Estratégia tradicional (mais rápida)
-python -m clinikondo processar \
-  --input docs/ --output saida/ \
+python -m src.clinikondo processar \
+  --input docs/ \
+  --output saida/ \
+  --model gpt-4 \
   --ocr-strategy traditional
 ```
 
@@ -143,8 +158,7 @@ export OPENAI_API_BASE="http://localhost:11434/v1"
 
 ### 3. **Estrutura de Pastas**
 
-```bash
-### **🏠 Preparando o Sanctuário CliniKondo:**
+**🏠 Preparando o Sanctuário CliniKondo:**
 
 ```bash
 # Criando o espaço sagrado de organização
@@ -170,11 +184,13 @@ python -m src.clinikondo processar \
 python -m src.clinikondo processar \
   --input ~/clinikondo/entrada \
   --output ~/clinikondo/saida \
-  --model gpt-oss:20b \
+  --model mistral-small3.1:24b \
   --api-base http://localhost:11434/v1 \
   --api-key mock-key \
   --temperature 0.3 \
   --max-tokens 1024 \
+  --timeout 240 \
+  --retry-delay 30 \
   --ocr-strategy hybrid \
   --log-level info
 ```
@@ -199,6 +215,8 @@ python -m src.clinikondo processar \
 | `--api-key` | string | - | Chave da API (para Ollama: qualquer valor) |
 | `--temperature` | float | `0.2` | Criatividade do modelo (0.0-1.0) |
 | `--max-tokens` | int | `512` | Tokens máximos na resposta |
+| `--timeout` | int | `240` | Timeout em segundos por requisição LLM |
+| `--retry-delay` | int | `30` | Tempo de espera entre tentativas (segundos) |
 | `--ocr-strategy` | string | `hybrid` | Estratégia OCR: `hybrid`, `multimodal`, `traditional` |
 | `--log-level` | string | `info` | Nível de log: `debug`, `info`, `warning`, `error` |
 | `--dry-run` | bool | `false` | Simula sem mover arquivos |
@@ -224,6 +242,8 @@ python -m src.clinikondo processar \
   --output ~/organizados \
   --model gpt-3.5-turbo \
   --api-key sk-... \
+  --timeout 240 \
+  --retry-delay 30 \
   --ocr-model llama3.2-vision \
   --ocr-api-base http://localhost:11434/v1 \
   --ocr-api-key mock-key \
@@ -237,15 +257,13 @@ python -m src.clinikondo processar \
 
 ## 📁 Estrutura de Saída
 
+**Padrão de Nomenclatura:** `AAAA-MM-DD-nome_paciente-tipo-especialidade-descricao.ext`
+
 ```
 ~/clinikondo/saida/
 ├── nome_do_paciente/
 │   ├── exames/
-│   │   ├── ```
-2024-03-15-nome_do_paciente-exame-laboratorial-hemograma-completo.pdf
-```
-
-**Padrão:** `AAAA-MM-DD-nome_paciente-tipo-especialidade-descricao.ext`
+│   │   ├── 2024-03-15-nome_do_paciente-exame-laboratorial-hemograma-completo.pdf
 │   │   └── 2024-02-20-nome_do_paciente-exame-cardiologia-eletrocardiograma.pdf
 │   ├── receitas_medicas/
 │   │   └── 2024-03-10-nome_do_paciente-receita-cardiologia-captopril-uso-continuo.pdf
@@ -278,39 +296,48 @@ ollama serve &
 ollama run gpt-oss:20b
 ```
 
-### **Problema: Código não atualiza após edições**
+### **Problema: Timeout muito curto para documentos grandes**
 ```bash
-# Use PYTHONPATH para forçar versão local
-PYTHONPATH=/path/to/clinikondo/src python -m clinikondo [argumentos]
+# Aumente o timeout e retry delay
+python -m src.clinikondo processar \
+  --input ~/entrada \
+  --output ~/saida \
+  --model gpt-4 \
+  --timeout 600 \
+  --retry-delay 60
 ```
 
 ## 📝 Exemplos de Uso
 
 ### **1. Processamento Básico**
 ```bash
-python -m clinikondo --input ./docs --output ./organized --model gpt-4
+python -m src.clinikondo processar \
+  --input ./docs \
+  --output ./organized \
+  --model gpt-4
 ```
 
 ### **2. Com Configurações Personalizadas**
 ```bash
-python -m clinikondo \
+python -m src.clinikondo processar \
   --input ./medical_docs \
   --output ./sorted_docs \
   --model gpt-3.5-turbo \
   --temperature 0.1 \
   --max-tokens 256 \
+  --timeout 180 \
+  --retry-delay 20 \
   --log-level debug
 ```
 
 ### **3. Teste com Ollama**
 ```bash
-export PYTHONPATH=/Users/seu-usuario/dev/clinikondo/src
-python -m clinikondo \
+python -m src.clinikondo processar \
   --input ~/documentos_medicos \
   --output ~/documentos_organizados \
   --model llama3:8b \
   --api-base http://localhost:11434/v1 \
-  --api-key qualquer-coisa \
+  --api-key mock-key \
   --dry-run
 ```
 
@@ -336,7 +363,7 @@ O sistema gera logs estruturados conforme SRS:
 
 - ✅ **≥ 90%** de documentos corretamente classificados
 - ✅ **≥ 95%** de acurácia na identificação de pacientes  
-- ✅ **≥ 95%** das requisições LLM concluídas em 30s
+- ✅ **≥ 95%** das requisições LLM concluídas em 240s (com timeout configurável)
 - ✅ **100%** dos originais preservados (modo padrão)
 - ✅ **100%** de detecção de duplicatas por hash SHA-256
 
@@ -404,3 +431,62 @@ sudo apt install tesseract-ocr
 # Windows
 # Download: https://github.com/UB-Mannheim/tesseract/wiki
 ```
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Para contribuir com o CliniKondo:
+
+1. **Fork o projeto**
+2. **Crie uma branch** para sua feature (`git checkout -b feature/MinhaNovaFeature`)
+3. **Commit suas mudanças** (`git commit -m 'Adiciona MinhaNovaFeature'`)
+4. **Push para a branch** (`git push origin feature/MinhaNovaFeature`)
+5. **Abra um Pull Request**
+
+### Diretrizes de Contribuição
+
+- Siga as convenções de código do projeto (use `ruff` para linting)
+- Adicione testes para novas funcionalidades
+- Atualize a documentação conforme necessário
+- Mantenha o tom amigável e acessível do projeto
+
+### Reportando Bugs
+
+Encontrou um bug? Por favor, abra uma [issue](https://github.com/alisio/clinikondo/issues) com:
+- Descrição clara do problema
+- Passos para reproduzir
+- Comportamento esperado vs. observado
+- Versão do Python e sistema operacional
+- Logs relevantes (use `--log-level debug`)
+
+## 📜 Licença
+
+Este projeto está licenciado sob a **Licença MIT** - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+### Resumo da Licença
+
+```
+MIT License
+
+Copyright (c) 2025 CliniKondo
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+[...]
+```
+
+## 🙏 Agradecimentos
+
+- Inspirado pelo método de organização **Marie Kondo**
+- Desenvolvido com ❤️ para facilitar a vida de famílias que precisam gerenciar documentos médicos
+- Agradecimentos especiais à comunidade open-source e aos projetos que tornaram isso possível
+
+---
+
+**Versão Atual:** 1.0.0  
+**Status:** Em desenvolvimento ativo  
+**Última Atualização:** Outubro 2025
