@@ -841,7 +841,34 @@ sudo apt install tesseract-ocr
 # Download: https://github.com/UB-Mannheim/tesseract/wiki
 ```
 
-## 🤝 Contribuindo
+## � Desenvolvimento Assistido por IA
+
+Este projeto foi desenvolvido com auxílio de **GitHub Copilot** e outras ferramentas de IA generativa para acelerar o desenvolvimento e melhorar a qualidade do código.
+
+### **Princípios Adotados:**
+- ✅ Todo código é revisado e testado manualmente
+- ✅ IA é usada como assistente, não substituto
+- ✅ Desenvolvedor mantém total responsabilidade pelo código
+- ✅ Documentação e testes são parte essencial do processo
+
+### **Áreas de Assistência IA:**
+- 💻 Geração de código boilerplate e estruturas repetitivas
+- 🔍 Sugestões de otimização e refatoração
+- 📝 Documentação, comentários e exemplos de uso
+- 🐛 Detecção de bugs e vulnerabilidades
+- 🧪 Criação de casos de teste
+
+### **Garantia de Qualidade:**
+
+Todo código gerado com assistência de IA passa por:
+1. **Revisão manual** completa do desenvolvedor
+2. **Testes unitários** e de integração
+3. **Validação** de conformidade com requisitos
+4. **Code review** quando aplicável
+
+**Responsabilidade Final:** O desenvolvedor humano assume total responsabilidade pelo código, sua funcionalidade, segurança e manutenibilidade.
+
+## �🤝 Contribuindo
 
 Contribuições são bem-vindas! Para contribuir com o CliniKondo:
 
