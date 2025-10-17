@@ -221,6 +221,134 @@ python -m src.clinikondo processar \
 | `--log-level` | string | `info` | Nível de log: `debug`, `info`, `warning`, `error` |
 | `--dry-run` | bool | `false` | Simula sem mover arquivos |
 | `--mover` | bool | `false` | Move (deleta originais) em vez de copiar |
+| `--force-reprocess` | bool | `false` | Ignora cache e reprocessa duplicatas |
+
+## 🔄 Sistema de Detecção de Duplicatas
+
+CliniKondo possui um **sistema inteligente de cache** que evita reprocessamento desnecessário de documentos idênticos, economizando tempo e custos de API.
+
+### **Como Funciona:**
+
+1. **Hash SHA-256**: Cada documento recebe um hash único baseado em seu conteúdo
+2. **Cache Persistente**: Hashes processados são salvos em `.clinikondo/processed_hashes.json`
+3. **Detecção Automática**: Antes de processar, o sistema verifica se o hash já existe
+4. **Economia Garantida**: Documentos duplicados **não** são enviados para o LLM
+
+### **📍 Localização do Cache:**
+
+```
+~/seu_diretorio_saida/.clinikondo/processed_hashes.json
+```
+
+**Exemplo:**
+```bash
+# Se você usa --output ~/clinikondo/saida
+~/clinikondo/saida/.clinikondo/processed_hashes.json
+```
+
+### **💰 Benefícios:**
+
+| Cenário | LLM Chamado? | Custo | Tempo |
+|---------|--------------|-------|-------|
+| **Arquivo novo** | ✅ Sim | 100% | ~3-5s |
+| **Hash duplicado** | ❌ Não | 0% | <0.1s |
+| **Nome duplicado** (hash diferente) | ✅ Sim | 100% | ~3-5s |
+
+### **🎯 Tipos de Duplicata:**
+
+#### **1. Hash Idêntico** (conteúdo igual)
+```bash
+# Primeiro processamento
+sadasdasd.pdf → processado com LLM → salvo
+
+# Segundo processamento (mesmo arquivo, nome diferente)
+documento_copia.pdf → ⏭️ IGNORADO (hash idêntico)
+```
+
+**Log:**
+```json
+{
+  "tipo_duplicata": "hash_identico",
+  "acao": "processamento_pulado",
+  "custo_economizado": "1_chamada_llm"
+}
+```
+
+#### **2. Nome Duplicado** (conteúdo diferente)
+```bash
+# Dois exames do mesmo paciente/data
+exame1.pdf → 2025-07-29-joao_silva-exame-sangue.pdf
+exame2.pdf → 2025-07-29-joao_silva-exame-sangue_v2.pdf  # versão numerada
+```
+
+**Log:**
+```json
+{
+  "tipo_duplicata": "nome_duplicado",
+  "acao": "versao_numerada_criada",
+  "nome_versionado": "arquivo_v2.pdf"
+}
+```
+
+### **🚀 Forçar Reprocessamento:**
+
+Use `--force-reprocess` quando:
+- Você atualizou o modelo LLM
+- Mudou o prompt de classificação
+- Quer reprocessar tudo ignorando o cache
+
+```bash
+python -m src.clinikondo processar \
+  --input ~/clinikondo/entrada \
+  --output ~/clinikondo/saida \
+  --model gpt-4 \
+  --force-reprocess  # Ignora cache de hashes
+```
+
+### **🧹 Gerenciar o Cache:**
+
+#### **Ver conteúdo do cache:**
+```bash
+cat ~/clinikondo/saida/.clinikondo/processed_hashes.json | python -m json.tool
+```
+
+#### **Limpar apenas o cache:**
+```bash
+rm ~/clinikondo/saida/.clinikondo/processed_hashes.json
+```
+
+#### **Limpar tudo (cache + arquivos processados):**
+```bash
+rm -rf ~/clinikondo/saida/*
+```
+
+#### **Estatísticas do cache:**
+```bash
+# Contar documentos processados
+cat ~/clinikondo/saida/.clinikondo/processed_hashes.json | python -c "import sys, json; print(f'{len(json.load(sys.stdin))} documentos no cache')"
+```
+
+### **📊 Estrutura do Cache:**
+
+```json
+{
+  "d745e981204baa6e554bee6cf5ec6b862f742925ba73fb315c3de9e02ccee00b": {
+    "hash_sha256": "d745e981...",
+    "arquivo_original": "/Users/user/entrada/exame.pdf",
+    "arquivo_destino": "/Users/user/saida/joao/exames/2025-07-29-joao-exame.pdf",
+    "timestamp": "2025-10-17T18:29:42.989671",
+    "paciente_slug": "joao_silva",
+    "tipo_documento": "exame"
+  }
+}
+```
+
+### **⚠️ Importante:**
+
+- Cache é **específico por pasta de saída** (`--output`)
+- Diferentes pastas de saída têm caches independentes
+- Cache persiste entre execuções do programa
+- `--dry-run` **não** registra hashes no cache
 
 ### 🔀 Configuração Multi-Modelo (Avançado)
 
@@ -341,10 +469,21 @@ python -m src.clinikondo processar \
   --dry-run
 ```
 
+### **4. Reprocessamento Forçado**
+```bash
+# Útil após atualizar modelo ou prompt
+python -m src.clinikondo processar \
+  --input ~/clinikondo/entrada \
+  --output ~/clinikondo/saida \
+  --model gpt-4-turbo \
+  --force-reprocess  # Ignora cache de duplicatas
+```
+
 ## 📖 Logs e Monitoramento
 
 O sistema gera logs estruturados conforme SRS:
 
+### **Log de Processamento Bem-Sucedido:**
 ```json
 {
   "arquivo": "exame_sangue.pdf",
@@ -359,6 +498,35 @@ O sistema gera logs estruturados conforme SRS:
 }
 ```
 
+### **Log de Duplicata Detectada:**
+```json
+{
+  "evento": "duplicata_detectada",
+  "tipo_duplicata": "hash_identico",
+  "arquivo_novo": "/Users/user/entrada/documento.pdf",
+  "arquivo_original": "/Users/user/entrada/documento_original.pdf",
+  "hash_sha256": "d745e981204baa6e...",
+  "acao": "processamento_pulado",
+  "custo_economizado": "1_chamada_llm",
+  "timestamp": "2025-10-17T18:37:07.761598"
+}
+```
+
+### **Log de Nome Duplicado:**
+```json
+{
+  "evento": "duplicata_detectada",
+  "tipo_duplicata": "nome_duplicado",
+  "arquivo_novo": "/Users/user/entrada/exame.pdf",
+  "nome_original": "2025-07-29-joao-exame-sangue.pdf",
+  "nome_versionado": "2025-07-29-joao-exame-sangue_v2.pdf",
+  "hash_novo": "d745e981...",
+  "hash_original": "diferente",
+  "acao": "versao_numerada_criada",
+  "timestamp": "2025-10-17T18:29:42.989234"
+}
+```
+
 ## 🎯 Critérios de Qualidade
 
 - ✅ **≥ 90%** de documentos corretamente classificados
@@ -366,6 +534,7 @@ O sistema gera logs estruturados conforme SRS:
 - ✅ **≥ 95%** das requisições LLM concluídas em 240s (com timeout configurável)
 - ✅ **100%** dos originais preservados (modo padrão)
 - ✅ **100%** de detecção de duplicatas por hash SHA-256
+- ✅ **0%** de custo LLM em documentos duplicados (economia via cache)
 
 ## 🧪 Testes
 
