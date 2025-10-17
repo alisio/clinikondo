@@ -549,7 +549,60 @@ python -m src.clinikondo pacientes remover \
 - Conflitos de alias são bloqueados automaticamente
 - Fusão de pacientes **NÃO move** documentos entre pastas
 
-## 📁 Estrutura de Saída
+## �️ Comandos Utilitários
+
+CliniKondo oferece comandos adicionais para manutenção e análise do sistema.
+
+### **📋 Verificar Duplicatas de Documentos**
+```bash
+python -m src.clinikondo verificar-duplicatas \
+  ~/clinikondo/saida \
+  --acao listar  # ou 'remover', 'mover'
+```
+
+**Ações:**
+- `listar`: Lista documentos duplicados sem modificar
+- `remover`: Remove duplicatas automaticamente
+- `mover`: Move duplicatas para pasta de backup
+
+### **📊 Relatório de Processamento**
+```bash
+python -m src.clinikondo relatorio-processamento \
+  --output-dir ~/clinikondo/saida \
+  --periodo 30 \
+  --formato texto  # ou 'json', 'html'
+```
+
+**Informações incluídas:**
+- Total de documentos processados
+- Taxa de sucesso/falha
+- Distribuição por tipo de documento
+- Pacientes com mais documentos
+- Estatísticas por período
+
+### **✅ Validar Estrutura de Pastas**
+```bash
+python -m src.clinikondo validar-estrutura \
+  ~/clinikondo/saida \
+  --corrigir  # opcional: corrige problemas automaticamente
+```
+
+**Validações:**
+- Nomenclatura de arquivos correta
+- Estrutura de diretórios adequada
+- Arquivos órfãos ou mal posicionados
+- Metadados faltantes
+
+### **📜 Visualizar Logs**
+```bash
+python -m src.clinikondo mostrar-log \
+  --nivel INFO \
+  --linhas 100
+```
+
+**Níveis disponíveis:** `DEBUG`, `INFO`, `WARNING`, `ERROR`
+
+## �📁 Estrutura de Saída
 
 **Padrão de Nomenclatura:** `AAAA-MM-DD-nome_paciente-tipo-especialidade-descricao.ext`
 
