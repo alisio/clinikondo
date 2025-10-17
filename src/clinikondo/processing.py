@@ -120,7 +120,7 @@ class DocumentProcessor:
         return base_dir / patient_slug / subfolder
 
     def _build_final_name(self, document: Document, patient_slug: str) -> str:
-        data_prefix = document.data_documento.strftime("%Y-%m")
+        data_prefix = document.data_documento.strftime("%Y-%m-%d")
         patient_part = slugify(document.nome_paciente_inferido or patient_slug, separator="_")
         tipo_part = sanitize_token(document.tipo_documento or "documento", separator="-")
         especialidade_part = sanitize_token(document.especialidade or "geral", separator="-")
@@ -171,30 +171,28 @@ class DocumentProcessor:
         try:
             if path.suffix.lower() == ".txt":
                 text = path.read_text(encoding="utf-8")
+                return text
             elif path.suffix.lower() == ".pdf":
-                text = self._extract_text_pdf(path)
+                return self._extract_text_pdf(path)
             elif path.suffix.lower() in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".heic"}:
-                text = self._extract_text_image(path)
+                return self._extract_text_image(path)
             else:
                 text = path.read_text(encoding="utf-8", errors="ignore")
-            
-            # Log do texto extraído em modo debug
-            if LOGGER.isEnabledFor(logging.DEBUG):
-                text_preview = text[:200] + "..." if len(text) > 200 else text
-                LOGGER.debug("Texto extraído de %s (%d chars): %s", path.name, len(text), text_preview)
-            
-            return text
+                return text
         except Exception as exc:
             LOGGER.warning("Falha ao extrair texto de %s: %s", path.name, exc)
             return ""
 
-    @staticmethod
-    def _extract_text_pdf(path: Path) -> str:
+    def _extract_text_pdf(self, path: Path) -> str:
+        """Extrai texto de PDF seguindo a estratégia configurada."""
+        strategy = self.config.ocr_strategy
+        
+        # Tentar PyPDF2 primeiro (rápido e eficiente)
         try:
             import PyPDF2  # type: ignore
-        except ImportError:  # pragma: no cover - depende de pip
-            LOGGER.debug("PyPDF2 não instalado, retornando texto vazio para %s", path)
-            return ""
+        except ImportError:
+            LOGGER.debug("PyPDF2 não instalado")
+            return self._apply_ocr_strategy(path, strategy, pypdf2_failed=True)
         
         text_parts: list[str] = []
         with path.open("rb") as pdf_file:
@@ -204,24 +202,37 @@ class DocumentProcessor:
         
         extracted_text = "\n".join(text_parts).strip()
         
-        # Log detalhado em modo debug
         if LOGGER.isEnabledFor(logging.DEBUG):
             LOGGER.debug("PyPDF2 extraiu %d caracteres de %s", len(extracted_text), path.name)
         
-        # Se não conseguiu extrair texto (PDF escaneado), tenta OCR
+        # Se não conseguiu extrair texto, aplicar estratégia OCR
         if not extracted_text:
             LOGGER.info("PDF sem texto embutido detectado, tentando OCR: %s", path.name)
-            try:
-                ocr_text = DocumentProcessor._extract_text_pdf_with_ocr(path)
-                if LOGGER.isEnabledFor(logging.DEBUG):
-                    ocr_preview = ocr_text[:300] + "..." if len(ocr_text) > 300 else ocr_text
-                    LOGGER.debug("OCR extraiu %d caracteres de %s: %s", len(ocr_text), path.name, ocr_preview)
-                return ocr_text
-            except Exception as ocr_exc:
-                LOGGER.warning("Falha no OCR para PDF %s: %s", path.name, ocr_exc)
-                return ""
+            return self._apply_ocr_strategy(path, strategy, pypdf2_failed=True)
         
         return extracted_text
+    
+    def _apply_ocr_strategy(self, path: Path, strategy: str, pypdf2_failed: bool = False) -> str:
+        """Aplica estratégia de OCR conforme configuração."""
+        if strategy == "multimodal":
+            # Apenas multimodal
+            return self._extract_text_pdf_with_multimodal_ocr(path)
+        
+        elif strategy == "traditional":
+            # Apenas OCR tradicional
+            return self._extract_text_pdf_with_ocr(path)
+        
+        else:  # hybrid (padrão)
+            # Tenta multimodal primeiro, fallback para traditional
+            try:
+                text = self._extract_text_pdf_with_multimodal_ocr(path)
+                if text and len(text.strip()) > 0:
+                    return text
+            except Exception as exc:
+                LOGGER.debug("Multimodal OCR falhou, tentando traditional: %s", exc)
+            
+            # Fallback para traditional
+            return self._extract_text_pdf_with_ocr(path)
 
     @staticmethod
     def _extract_text_image(path: Path) -> str:
@@ -249,7 +260,7 @@ class DocumentProcessor:
 
     @staticmethod
     def _extract_text_pdf_with_ocr(path: Path) -> str:
-        """Extrai texto de PDF escaneado usando OCR."""
+        """Extrai texto de PDF escaneado usando OCR tradicional."""
         try:
             import fitz  # PyMuPDF
             from PIL import Image  # type: ignore
@@ -263,7 +274,7 @@ class DocumentProcessor:
         # Abre o PDF com PyMuPDF
         with fitz.open(path) as doc:
             total_pages = len(doc)
-            LOGGER.debug("Iniciando OCR em PDF com %d páginas: %s", total_pages, path.name)
+            LOGGER.debug("Iniciando OCR tradicional em PDF com %d páginas: %s", total_pages, path.name)
             
             for page_num in range(total_pages):
                 page = doc.load_page(page_num)
@@ -283,12 +294,86 @@ class DocumentProcessor:
                         char_count = len(page_text_clean)
                         if char_count > 0:
                             preview = page_text_clean[:150] + "..." if len(page_text_clean) > 150 else page_text_clean
-                            LOGGER.debug("OCR página %d/%d (%d chars): %s", page_num + 1, total_pages, char_count, preview)
+                            LOGGER.debug("OCR tradicional página %d/%d (%d chars): %s", page_num + 1, total_pages, char_count, preview)
                         else:
-                            LOGGER.debug("OCR página %d/%d: nenhum texto encontrado", page_num + 1, total_pages)
+                            LOGGER.debug("OCR tradicional página %d/%d: nenhum texto encontrado", page_num + 1, total_pages)
         
         final_text = "\n".join(text_parts)
-        LOGGER.info("OCR concluído para %s: %d caracteres extraídos", path.name, len(final_text))
+        LOGGER.info("OCR tradicional concluído para %s: %d caracteres extraídos", path.name, len(final_text))
+        return final_text
+    
+    def _extract_text_pdf_with_multimodal_ocr(self, path: Path) -> str:
+        """Extrai texto de PDF escaneado usando LLM multimodal (ex: GPT-4 Vision)."""
+        try:
+            import fitz  # PyMuPDF
+            from PIL import Image  # type: ignore
+            import base64
+            from openai import OpenAI  # type: ignore
+        except ImportError:  # pragma: no cover - depende de pip
+            LOGGER.debug("Bibliotecas necessárias para OCR multimodal não instaladas")
+            raise RuntimeError("Bibliotecas necessárias para OCR multimodal não instaladas")
+        
+        if not self.config.openai_api_key:
+            raise RuntimeError("API key não configurada para OCR multimodal")
+        
+        client = OpenAI(
+            api_key=self.config.openai_api_key,
+            base_url=self.config.openai_api_base
+        )
+        
+        text_parts: list[str] = []
+        
+        with fitz.open(path) as doc:
+            total_pages = len(doc)
+            LOGGER.debug("Iniciando OCR multimodal em PDF com %d páginas: %s", total_pages, path.name)
+            
+            for page_num in range(total_pages):
+                page = doc.load_page(page_num)
+                
+                # Converte página para imagem
+                pix = page.get_pixmap()
+                img_data = pix.tobytes("png")
+                
+                # Encode para base64
+                img_base64 = base64.b64encode(img_data).decode('utf-8')
+                
+                try:
+                    # Chama LLM multimodal para extrair texto
+                    response = client.chat.completions.create(
+                        model=self.config.modelo_llm if "vision" in self.config.modelo_llm.lower() else "gpt-4-vision-preview",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": "Extraia todo o texto visível nesta imagem de documento médico. Retorne apenas o texto, preservando a formatação."},
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {"url": f"data:image/png;base64,{img_base64}"}
+                                    }
+                                ]
+                            }
+                        ],
+                        max_tokens=self.config.llm_max_tokens * 2,  # Mais tokens para OCR
+                        temperature=0.0  # Determinístico para OCR
+                    )
+                    
+                    page_text = response.choices[0].message.content or ""
+                    text_parts.append(page_text)
+                    
+                    if LOGGER.isEnabledFor(logging.DEBUG):
+                        char_count = len(page_text.strip())
+                        if char_count > 0:
+                            preview = page_text[:150] + "..." if len(page_text) > 150 else page_text
+                            LOGGER.debug("OCR multimodal página %d/%d (%d chars): %s", page_num + 1, total_pages, char_count, preview)
+                        else:
+                            LOGGER.debug("OCR multimodal página %d/%d: nenhum texto encontrado", page_num + 1, total_pages)
+                
+                except Exception as page_exc:
+                    LOGGER.warning("Erro ao processar página %d com OCR multimodal: %s", page_num + 1, page_exc)
+                    # Continuar com próxima página
+        
+        final_text = "\n".join(text_parts)
+        LOGGER.info("OCR multimodal concluído para %s: %d caracteres extraídos", path.name, len(final_text))
         return final_text
 
     def _validate_file(self, file_path: Path) -> List[str]:

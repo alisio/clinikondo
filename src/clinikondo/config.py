@@ -37,7 +37,14 @@ class Config:
     executar_copia_apos_erro: bool = False
     log_nivel: str = "info"
     dry_run: bool = False
-    # estrategia_extracao removida - sistema usa exclusivamente LLM
+    ocr_strategy: str = "hybrid"  # hybrid, multimodal, traditional
+    # Multi-model configuration (SRS v2.0)
+    ocr_model: str | None = None  # Se None, usa modelo_llm
+    ocr_api_key: str | None = None  # Se None, usa openai_api_key
+    ocr_api_base: str | None = None  # Se None, usa openai_api_base
+    classification_model: str | None = None  # Se None, usa modelo_llm
+    classification_api_key: str | None = None  # Se None, usa openai_api_key
+    classification_api_base: str | None = None  # Se None, usa openai_api_base
 
     def validar(self) -> None:
         if not self.input_dir.exists():
@@ -55,6 +62,9 @@ class Config:
         # Validação obrigatória: sistema requer LLM
         if not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY é obrigatória. Sistema utiliza exclusivamente LLM para processamento.")
+        # Validar estratégia OCR
+        if self.ocr_strategy not in {"hybrid", "multimodal", "traditional"}:
+            raise ValueError(f"ocr_strategy inválida: {self.ocr_strategy}. Use: hybrid, multimodal ou traditional")
 
     @property
     def state_dir(self) -> Path:
@@ -63,6 +73,37 @@ class Config:
     @property
     def patients_storage_path(self) -> Path:
         return self.state_dir / "patients.json"
+    
+    # Propriedades com fallback para multi-model (SRS v2.0)
+    @property
+    def effective_ocr_model(self) -> str:
+        """Modelo efetivo para OCR (fallback para modelo_llm)."""
+        return self.ocr_model or self.modelo_llm
+    
+    @property
+    def effective_ocr_api_key(self) -> str | None:
+        """API key efetiva para OCR (fallback para openai_api_key)."""
+        return self.ocr_api_key or self.openai_api_key
+    
+    @property
+    def effective_ocr_api_base(self) -> str | None:
+        """API base efetiva para OCR (fallback para openai_api_base)."""
+        return self.ocr_api_base or self.openai_api_base
+    
+    @property
+    def effective_classification_model(self) -> str:
+        """Modelo efetivo para classificação (fallback para modelo_llm)."""
+        return self.classification_model or self.modelo_llm
+    
+    @property
+    def effective_classification_api_key(self) -> str | None:
+        """API key efetiva para classificação (fallback para openai_api_key)."""
+        return self.classification_api_key or self.openai_api_key
+    
+    @property
+    def effective_classification_api_base(self) -> str | None:
+        """API base efetiva para classificação (fallback para openai_api_base)."""
+        return self.classification_api_base or self.openai_api_base
 
     def prompt_text(self) -> str | None:
         if not self.prompt_template_path:
@@ -123,7 +164,43 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
     )
     log_nivel = args.log_level or env.get("CLINIKONDO_LOG_LEVEL", "info")
     dry_run = args.dry_run or _bool_from_env(env.get("CLINIKONDO_DRY_RUN"), False)
-    # estrategia_extracao removida - sistema usa exclusivamente LLM
+    ocr_strategy = (
+        args.ocr_strategy
+        if hasattr(args, 'ocr_strategy') and args.ocr_strategy
+        else env.get("CLINIKONDO_OCR_STRATEGY", "hybrid")
+    )
+    
+    # Multi-model configuration (SRS v2.0)
+    ocr_model = (
+        args.ocr_model
+        if hasattr(args, 'ocr_model') and args.ocr_model
+        else env.get("CLINIKONDO_OCR_MODEL")
+    )
+    ocr_api_key = (
+        args.ocr_api_key
+        if hasattr(args, 'ocr_api_key') and args.ocr_api_key
+        else env.get("CLINIKONDO_OCR_API_KEY")
+    )
+    ocr_api_base = (
+        args.ocr_api_base
+        if hasattr(args, 'ocr_api_base') and args.ocr_api_base
+        else env.get("CLINIKONDO_OCR_API_BASE")
+    )
+    classification_model = (
+        args.classification_model
+        if hasattr(args, 'classification_model') and args.classification_model
+        else env.get("CLINIKONDO_CLASSIFICATION_MODEL")
+    )
+    classification_api_key = (
+        args.classification_api_key
+        if hasattr(args, 'classification_api_key') and args.classification_api_key
+        else env.get("CLINIKONDO_CLASSIFICATION_API_KEY")
+    )
+    classification_api_base = (
+        args.classification_api_base
+        if hasattr(args, 'classification_api_base') and args.classification_api_base
+        else env.get("CLINIKONDO_CLASSIFICATION_API_BASE")
+    )
 
     config = Config(
         input_dir=input_dir,
@@ -141,7 +218,13 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
         executar_copia_apos_erro=executar_copia_apos_erro,
         log_nivel=log_nivel,
         dry_run=dry_run,
-        # estrategia_extracao removida - sistema usa exclusivamente LLM
+        ocr_strategy=ocr_strategy,
+        ocr_model=ocr_model,
+        ocr_api_key=ocr_api_key,
+        ocr_api_base=ocr_api_base,
+        classification_model=classification_model,
+        classification_api_key=classification_api_key,
+        classification_api_base=classification_api_base,
     )
     config.validar()
     return config

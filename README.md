@@ -43,9 +43,39 @@ Com leveza, humor e método, CliniKondo organiza os documentos médicos da sua f
 | Tipo de PDF | Método de Extração | Dependências |
 |-------------|-------------------|--------------|
 | **PDF com texto** | PyPDF2 | `PyPDF2>=3.0.0` |
-| **PDF escaneado** | OCR automático (PyMuPDF + Tesseract) | `PyMuPDF>=1.23.0`, `pillow>=10.0.0`, `pytesseract>=0.3.10` |
+| **PDF escaneado** | OCR automático (estratégia configurável) | Ver tabela abaixo |
 
 > 🚀 **OCR Automático**: Se um PDF não contém texto embutido, o sistema automaticamente aplica OCR para extrair o texto das imagens
+
+### **⚙️ Estratégias de OCR:**
+
+CliniKondo oferece **3 estratégias de OCR** para máxima flexibilidade:
+
+| Estratégia | Descrição | Dependências | Quando Usar |
+|-----------|-----------|--------------|-------------|
+| **`hybrid`** (padrão) | PyPDF2 → Multimodal → Traditional | Todas abaixo | Máxima compatibilidade e qualidade |
+| **`multimodal`** | Apenas LLM Vision (GPT-4) | OpenAI API | Documentos complexos, melhor precisão |
+| **`traditional`** | Apenas Tesseract OCR | `PyMuPDF`, `pillow`, `pytesseract` | Documentos simples, máxima velocidade |
+
+**Exemplos:**
+
+```bash
+# Estratégia híbrida (padrão)
+python -m clinikondo processar \
+  --input docs/ --output saida/ \
+  --ocr-strategy hybrid
+
+# Estratégia multimodal (melhor qualidade)
+python -m clinikondo processar \
+  --input docs/ --output saida/ \
+  --model gpt-4-vision-preview \
+  --ocr-strategy multimodal
+
+# Estratégia tradicional (mais rápida)
+python -m clinikondo processar \
+  --input docs/ --output saida/ \
+  --ocr-strategy traditional
+```
 
 ### **⚙️ Configuração OCR:**
 
@@ -145,6 +175,7 @@ python -m src.clinikondo processar \
   --api-key mock-key \
   --temperature 0.3 \
   --max-tokens 1024 \
+  --ocr-strategy hybrid \
   --log-level info
 ```
 
@@ -168,9 +199,41 @@ python -m src.clinikondo processar \
 | `--api-key` | string | - | Chave da API (para Ollama: qualquer valor) |
 | `--temperature` | float | `0.2` | Criatividade do modelo (0.0-1.0) |
 | `--max-tokens` | int | `512` | Tokens máximos na resposta |
+| `--ocr-strategy` | string | `hybrid` | Estratégia OCR: `hybrid`, `multimodal`, `traditional` |
 | `--log-level` | string | `info` | Nível de log: `debug`, `info`, `warning`, `error` |
 | `--dry-run` | bool | `false` | Simula sem mover arquivos |
 | `--mover` | bool | `false` | Move (deleta originais) em vez de copiar |
+
+### 🔀 Configuração Multi-Modelo (Avançado)
+
+A aplicação suporta **modelos separados** para OCR e classificação, permitindo otimização de custo e qualidade:
+
+| Parâmetro | Tipo | Fallback | Descrição |
+|-----------|------|----------|-----------|
+| `--ocr-model` | string | `--model` | Modelo para OCR (opcional) |
+| `--ocr-api-key` | string | `--api-key` | API key para OCR (opcional) |
+| `--ocr-api-base` | url | `--api-base` | Endpoint para OCR (opcional) |
+| `--classification-model` | string | `--model` | Modelo para classificação (opcional) |
+| `--classification-api-key` | string | `--api-key` | API key para classificação (opcional) |
+| `--classification-api-base` | url | `--api-base` | Endpoint para classificação (opcional) |
+
+**Exemplo - OCR Local + Classificação Cloud:**
+```bash
+python -m src.clinikondo processar \
+  --input ~/docs \
+  --output ~/organizados \
+  --model gpt-3.5-turbo \
+  --api-key sk-... \
+  --ocr-model llama3.2-vision \
+  --ocr-api-base http://localhost:11434/v1 \
+  --ocr-api-key mock-key \
+  --ocr-strategy multimodal
+```
+
+**Benefícios:**
+- 💰 **Economia**: Use OCR local grátis (Ollama) + classificação cloud barata
+- ⚡ **Performance**: Modelos especializados para cada tarefa
+- 🎯 **Qualidade**: Melhor modelo Vision para OCR, melhor modelo geral para classificação
 
 ## 📁 Estrutura de Saída
 
@@ -178,7 +241,11 @@ python -m src.clinikondo processar \
 ~/clinikondo/saida/
 ├── antonio_alisio_de_menezes_cordeiro/
 │   ├── exames/
-│   │   ├── 2024-03-15-antonio_alisio_de_menezes_cordeiro-exame-laboratorial-hemograma-completo.pdf
+│   │   ├── ```
+2024-03-15-antonio_alisio_de_menezes_cordeiro-exame-laboratorial-hemograma-completo.pdf
+```
+
+**Padrão:** `AAAA-MM-DD-nome_paciente-tipo-especialidade-descricao.ext`
 │   │   └── 2024-02-20-antonio_alisio_de_menezes_cordeiro-exame-cardiologia-eletrocardiograma.pdf
 │   ├── receitas_medicas/
 │   │   └── 2024-03-10-antonio_alisio_de_menezes_cordeiro-receita-cardiologia-captopril-uso-continuo.pdf

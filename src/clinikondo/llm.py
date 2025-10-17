@@ -131,14 +131,27 @@ class OpenAILLMExtractor(BaseExtractor):
             if not raw_response.strip():
                 raise RuntimeError("LLM retornou resposta vazia")
             
-            # Remove markdown se presente
+            # Remove markdown e texto adicional se presente
             content = raw_response.strip()
-            if content.startswith('```json'):
-                content = content[7:]  # Remove ```json
-            if content.startswith('```'):
-                content = content[3:]   # Remove ``` genérico
-            if content.endswith('```'):
-                content = content[:-3]  # Remove ``` final
+            
+            # Procurar por bloco JSON entre marcadores ```json e ```
+            if '```json' in content:
+                start = content.find('```json') + 7
+                end = content.find('```', start)
+                if end > start:
+                    content = content[start:end].strip()
+            # Tentar encontrar JSON entre ``` genérico
+            elif '```' in content:
+                start = content.find('```') + 3
+                end = content.find('```', start)
+                if end > start:
+                    content = content[start:end].strip()
+            
+            # Remover texto antes de { e depois de }
+            if '{' in content and '}' in content:
+                start = content.find('{')
+                end = content.rfind('}') + 1
+                content = content[start:end]
             
             content = content.strip()
             print(f"DEBUG: Conteúdo limpo: '{content}'")

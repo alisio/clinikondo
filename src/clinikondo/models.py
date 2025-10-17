@@ -42,6 +42,15 @@ class Document:
     log_processamento: str = ""
     resposta_bruta_llm: str | None = None
     dados_extraidos: Dict[str, str] = field(default_factory=dict)
+    # Campos adicionados conforme SRS
+    hash_sha256: str | None = None
+    metodo_extracao: str = "pypdf2"  # pypdf2, ocr_traditional, ocr_multimodal
+    ocr_aplicado: bool = False
+    paginas_processadas: int | None = None
+    chars_extraidos: int = 0
+    confianca_extracao: float = 0.0
+    tempo_processamento_ms: int = 0
+    tentativas_llm: int = 0
 
     @property
     def nome_arquivo_original(self) -> str:
@@ -81,6 +90,12 @@ class Patient:
     data_nascimento: Optional[date] = None
     genero: Optional[str] = None
     documentos_associados: List[str] = field(default_factory=list)
+    # Campos adicionados conforme SRS
+    data_criacao: datetime = field(default_factory=datetime.now)
+    data_ultima_atualizacao: datetime = field(default_factory=datetime.now)
+    documentos_count: int = 0
+    confianca_nome: float = 1.0
+    origem_criacao: str = "manual_add"  # llm_extraction, manual_add, fuzzy_match
 
     def nomes_normalizados(self) -> List[str]:
         """Lista os nomes possíveis normalizados."""
