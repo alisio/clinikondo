@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import logging
 import shutil
+import time
 from pathlib import Path
 from typing import Iterable, List
 
@@ -322,19 +323,42 @@ class DocumentProcessor:
         
         # Validar segurança da transmissão de dados médicos
         api_base = self.config.effective_ocr_api_base or "https://api.openai.com/v1"
-        if not api_base.startswith("https://"):
+        
+        # Permitir localhost/127.0.0.1 HTTP para Ollama local
+        is_localhost = any(host in api_base for host in ["localhost", "127.0.0.1"])
+        if not api_base.startswith("https://") and not is_localhost:
             raise RuntimeError(
                 f"Transmissão insegura detectada: API base deve usar HTTPS para proteger dados médicos. "
-                f"URL atual: {api_base}. Configure uma URL HTTPS segura."
+                f"URL atual: {api_base}. Configure uma URL HTTPS segura ou use localhost para testes."
             )
         
         if not self.config.effective_ocr_api_key:
             raise RuntimeError("API key não configurada para OCR multimodal")
         
-        client = OpenAI(
-            api_key=self.config.effective_ocr_api_key,
-            base_url=api_base
-        )
+        # Configurar timeout usando httpx.Timeout
+        try:
+            import httpx  # type: ignore
+        except ImportError:
+            LOGGER.warning("httpx não instalado, usando timeout padrão")
+            httpx = None
+        
+        if httpx:
+            timeout_config = httpx.Timeout(
+                connect=30.0,  # Timeout para conexão
+                read=self.config.llm_timeout,  # Timeout para leitura (padrão: 240s)
+                write=30.0,  # Timeout para escrita
+                pool=30.0  # Timeout para pool de conexões
+            )
+            client = OpenAI(
+                api_key=self.config.effective_ocr_api_key,
+                base_url=api_base,
+                timeout=timeout_config
+            )
+        else:
+            client = OpenAI(
+                api_key=self.config.effective_ocr_api_key,
+                base_url=api_base
+            )
         
         text_parts: list[str] = []
         
@@ -352,40 +376,54 @@ class DocumentProcessor:
                 # Encode para base64
                 img_base64 = base64.b64encode(img_data).decode('utf-8')
                 
-                try:
-                    # Chama LLM multimodal para extrair texto
-                    response = client.chat.completions.create(
-                        model=self.config.modelo_llm if "vision" in self.config.modelo_llm.lower() else "gpt-4-vision-preview",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": "Extraia todo o texto visível nesta imagem de documento médico. Retorne apenas o texto, preservando a formatação."},
-                                    {
-                                        "type": "image_url",
-                                        "image_url": {"url": f"data:image/png;base64,{img_base64}"}
-                                    }
-                                ]
-                            }
-                        ],
-                        max_tokens=self.config.llm_max_tokens * 2,  # Mais tokens para OCR
-                        temperature=0.0  # Determinístico para OCR
-                    )
+                # Retry com delay configurável para cada página
+                page_text = ""
+                for attempt in range(1, self.config.llm_max_retries + 1):
+                    try:
+                        LOGGER.debug(f"OCR página {page_num + 1}/{total_pages} - Tentativa {attempt}/{self.config.llm_max_retries}")
+                        
+                        # Chama LLM multimodal para extrair texto
+                        # Usa o modelo OCR específico se configurado, senão usa o modelo principal
+                        ocr_model = self.config.effective_ocr_model or self.config.modelo_llm
+                        response = client.chat.completions.create(
+                            model=ocr_model,
+                            messages=[
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Extraia todo o texto visível nesta imagem de documento médico. Retorne apenas o texto, preservando a formatação."},
+                                        {
+                                            "type": "image_url",
+                                            "image_url": {"url": f"data:image/png;base64,{img_base64}"}
+                                        }
+                                    ]
+                                }
+                            ],
+                            max_tokens=self.config.llm_max_tokens * 2,  # Mais tokens para OCR
+                            temperature=0.0  # Determinístico para OCR
+                        )
+                        
+                        page_text = response.choices[0].message.content or ""
+                        text_parts.append(page_text)
+                        
+                        if LOGGER.isEnabledFor(logging.DEBUG):
+                            char_count = len(page_text.strip())
+                            if char_count > 0:
+                                preview = page_text[:150] + "..." if len(page_text) > 150 else page_text
+                                LOGGER.debug("✓ OCR multimodal página %d/%d (%d chars): %s", page_num + 1, total_pages, char_count, preview)
+                            else:
+                                LOGGER.debug("✓ OCR multimodal página %d/%d: nenhum texto encontrado", page_num + 1, total_pages)
+                        
+                        break  # Sucesso, sair do loop de retry
                     
-                    page_text = response.choices[0].message.content or ""
-                    text_parts.append(page_text)
-                    
-                    if LOGGER.isEnabledFor(logging.DEBUG):
-                        char_count = len(page_text.strip())
-                        if char_count > 0:
-                            preview = page_text[:150] + "..." if len(page_text) > 150 else page_text
-                            LOGGER.debug("OCR multimodal página %d/%d (%d chars): %s", page_num + 1, total_pages, char_count, preview)
+                    except Exception as page_exc:
+                        LOGGER.warning(f"Tentativa {attempt}/{self.config.llm_max_retries} falhou para página {page_num + 1}: {page_exc}")
+                        if attempt < self.config.llm_max_retries:
+                            LOGGER.info(f"Aguardando {self.config.llm_retry_delay}s antes de tentar novamente...")
+                            time.sleep(self.config.llm_retry_delay)
                         else:
-                            LOGGER.debug("OCR multimodal página %d/%d: nenhum texto encontrado", page_num + 1, total_pages)
-                
-                except Exception as page_exc:
-                    LOGGER.warning("Erro ao processar página %d com OCR multimodal: %s", page_num + 1, page_exc)
-                    # Continuar com próxima página
+                            LOGGER.error(f"Falha ao processar página {page_num + 1} com OCR multimodal após {self.config.llm_max_retries} tentativas")
+                            # Continuar com próxima página mesmo após falha
         
         final_text = "\n".join(text_parts)
         LOGGER.info("OCR multimodal concluído para %s: %d caracteres extraídos", path.name, len(final_text))

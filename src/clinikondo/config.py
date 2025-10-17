@@ -57,6 +57,9 @@ class Config:
     openai_api_base: str | None = None
     llm_temperature: float = 0.2
     llm_max_tokens: int = 512
+    llm_timeout: int = 240  # Timeout em segundos (padrão: 4 minutos)
+    llm_retry_delay: int = 30  # Delay entre tentativas em segundos (padrão: 30s)
+    llm_max_retries: int = 3  # Número máximo de tentativas (padrão: 3)
     prompt_template_path: Path | None = None
     match_nome_paciente_auto: bool = True
     criar_paciente_sem_match: bool = True
@@ -87,6 +90,12 @@ class Config:
             raise ValueError("Temperatura deve estar entre 0 e 2.")
         if self.llm_max_tokens <= 0:
             raise ValueError("llm_max_tokens deve ser positivo.")
+        if self.llm_timeout <= 0:
+            raise ValueError("llm_timeout deve ser positivo.")
+        if self.llm_retry_delay < 0:
+            raise ValueError("llm_retry_delay não pode ser negativo.")
+        if self.llm_max_retries < 1:
+            raise ValueError("llm_max_retries deve ser pelo menos 1.")
         # Validação obrigatória: sistema requer LLM
         if not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY é obrigatória. Sistema utiliza exclusivamente LLM para processamento.")
@@ -166,6 +175,17 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
         if args.max_tokens is not None
         else int(env.get("CLINIKONDO_MAX_TOKENS", 512))
     )
+    llm_timeout = (
+        args.timeout
+        if hasattr(args, 'timeout') and args.timeout is not None
+        else int(env.get("CLINIKONDO_TIMEOUT", 240))
+    )
+    llm_retry_delay = (
+        args.retry_delay
+        if hasattr(args, 'retry_delay') and args.retry_delay is not None
+        else int(env.get("CLINIKONDO_RETRY_DELAY", 30))
+    )
+    llm_max_retries = int(env.get("CLINIKONDO_MAX_RETRIES", 3))
     prompt_template = args.prompt_template or env.get("CLINIKONDO_PROMPT_TEMPLATE")
     prompt_template_path = Path(prompt_template).expanduser() if prompt_template else None
     if prompt_template_path:
@@ -243,6 +263,9 @@ def load_config_from_args(args: argparse.Namespace) -> Config:
         openai_api_base=openai_api_base,
         llm_temperature=llm_temperature,
         llm_max_tokens=llm_max_tokens,
+        llm_timeout=llm_timeout,
+        llm_retry_delay=llm_retry_delay,
+        llm_max_retries=llm_max_retries,
         prompt_template_path=prompt_template_path,
         match_nome_paciente_auto=match_nome_paciente_auto,
         criar_paciente_sem_match=criar_paciente_sem_match,

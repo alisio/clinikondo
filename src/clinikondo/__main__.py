@@ -107,6 +107,8 @@ def build_parser() -> argparse.ArgumentParser:
     processar_parser.add_argument("--api-base", help="Endpoint alternativo para a API LLM")
     processar_parser.add_argument("--temperature", type=float, help="Temperatura da inferência LLM (0-2)")
     processar_parser.add_argument("--max-tokens", type=int, help="Quantidade máxima de tokens do LLM")
+    processar_parser.add_argument("--timeout", type=int, help="Timeout em segundos por requisição LLM (padrão: 240)")
+    processar_parser.add_argument("--retry-delay", type=int, help="Tempo de espera entre tentativas em segundos (padrão: 30)")
     processar_parser.add_argument("--prompt-template", help="Caminho para o template de prompt")
     processar_parser.add_argument("--ocr-strategy", choices=["hybrid", "multimodal", "traditional"], default="hybrid", help="Estratégia de OCR (hybrid, multimodal, traditional)")
     # Multi-model configuration (SRS v2.0)

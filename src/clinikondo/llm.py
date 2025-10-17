@@ -69,14 +69,30 @@ def validate_llm_response(data: Dict[str, Any]) -> None:
             raise ValueError(f"Campo não permitido na resposta do LLM: {key}")
     
     # Validações específicas de conteúdo
-    if data.get("tipo_documento") and data["tipo_documento"] not in [
-        "exame", "receita", "vacina", "controle", "contato", "laudo", "agenda", "documento"
-    ]:
-        raise ValueError(f"tipo_documento inválido: {data['tipo_documento']}")
+    # Normalizar tipo_documento: ECG, eletrocardiograma -> exame
+    if data.get("tipo_documento"):
+        tipo_lower = data["tipo_documento"].lower()
+        # Mapeamento de variações para tipos válidos
+        tipo_mapping = {
+            "ecg": "exame",
+            "eletrocardiograma": "exame",
+            "ultrassom": "exame",
+            "raio-x": "exame",
+            "rx": "exame",
+            "tomografia": "exame",
+            "ressonancia": "exame",
+        }
+        if tipo_lower in tipo_mapping:
+            data["tipo_documento"] = tipo_mapping[tipo_lower]
+        
+        if data["tipo_documento"] not in [
+            "exame", "receita", "vacina", "controle", "contato", "laudo", "agenda", "documento"
+        ]:
+            raise ValueError(f"tipo_documento inválido: {data['tipo_documento']}")
     
     if data.get("especialidade") and data["especialidade"] not in [
         "radiologia", "laboratorial", "cardiologia", "endocrinologia", 
-        "ginecologia", "clinica_geral", "dermatologia", "pediatria"
+        "ginecologia", "clinica_geral", "dermatologia", "pediatria", "oftalmologia"
     ]:
         raise ValueError(f"especialidade inválida: {data['especialidade']}")
 
@@ -117,6 +133,7 @@ formatações quebradas ou textos mistos) e retorne um objeto JSON com os seguin
 - clinica_geral
 - dermatologia
 - pediatria
+- oftalmologia
 
 **Instruções adicionais:**
 - Sempre tente preencher todos os campos, mesmo que inferindo com base no conteúdo.
@@ -156,12 +173,29 @@ class OpenAILLMExtractor(BaseExtractor):
             raise ValueError("OPENAI_API_KEY não configurada.")
         try:
             from openai import OpenAI  # type: ignore
+            import httpx  # type: ignore
         except ImportError as exc:  # pragma: no cover - depende de pip
             raise RuntimeError("Pacote 'openai' não está instalado.") from exc
-        self._client = OpenAI(api_key=config.openai_api_key, base_url=config.openai_api_base)
+        
+        # Configurar timeout usando httpx.Timeout
+        timeout_config = httpx.Timeout(
+            connect=30.0,  # Timeout para conexão
+            read=config.llm_timeout,  # Timeout para leitura (padrão: 240s)
+            write=30.0,  # Timeout para escrita
+            pool=30.0  # Timeout para pool de conexões
+        )
+        
+        self._client = OpenAI(
+            api_key=config.openai_api_key,
+            base_url=config.openai_api_base,
+            timeout=timeout_config
+        )
         self._model = config.modelo_llm
         self._temperature = config.llm_temperature
         self._max_tokens = config.llm_max_tokens
+        self._timeout = config.llm_timeout
+        self._retry_delay = config.llm_retry_delay
+        self._max_retries = config.llm_max_retries
         self._prompt_template = prompt_template or DEFAULT_PROMPT
 
     def extract(
@@ -242,14 +276,14 @@ class OpenAILLMExtractor(BaseExtractor):
         print(f"DEBUG: Usando endpoint {self._client.base_url}")
         print("DEBUG: Fazendo chamada para chat.completions.create")
         
-        max_tentativas = 3  # Conforme SRS: "Até 3 tentativas"
-        for tentativa in range(1, max_tentativas + 1):
+        for tentativa in range(1, self._max_retries + 1):
             try:
+                LOGGER.debug(f"Tentativa {tentativa}/{self._max_retries} de classificação LLM")
+                
                 completion = self._client.chat.completions.create(
                     model=self._model,
                     temperature=self._temperature,
                     max_tokens=self._max_tokens,
-                    timeout=30,  # Conforme SRS: "Padrão 30 segundos"
                     messages=[
                         {"role": "system", "content": "Você extrai metadados estruturados de documentos médicos."},
                         {"role": "user", "content": prompt},
@@ -257,14 +291,17 @@ class OpenAILLMExtractor(BaseExtractor):
                 )
                 response_content = completion.choices[0].message.content
                 print(f"DEBUG: Sucesso na tentativa {tentativa}")
+                LOGGER.info(f"✓ Classificação LLM bem-sucedida na tentativa {tentativa}")
                 return response_content
             except Exception as e:
-                print(f"DEBUG: Erro na tentativa {tentativa}/{max_tentativas}: {e}")
-                if tentativa == max_tentativas:
-                    raise RuntimeError(f"Falha após {max_tentativas} tentativas: {e}") from e
+                LOGGER.warning(f"Tentativa {tentativa}/{self._max_retries} falhou: {e}")
+                print(f"DEBUG: Erro na tentativa {tentativa}/{self._max_retries}: {e}")
+                if tentativa == self._max_retries:
+                    LOGGER.error(f"Falha na classificação LLM após {self._max_retries} tentativas")
+                    raise RuntimeError(f"Falha após {self._max_retries} tentativas: {e}") from e
                 # Aguarda antes de tentar novamente
-                import time
-                time.sleep(1 * tentativa)  # Backoff progressivo
+                LOGGER.info(f"Aguardando {self._retry_delay}s antes de tentar novamente...")
+                time.sleep(self._retry_delay)
 
     def _build_result(self, data: Dict[str, Any]) -> LLMExtractionResult:
         try:
