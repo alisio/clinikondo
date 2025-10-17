@@ -67,7 +67,7 @@ sudo apt install tesseract-ocr tesseract-ocr-por
 ```bash
 # Clone o repositório
 git clone <url-do-repo>
-cd medifolder
+cd clinikondo
 
 # Crie e ative ambiente virtual
 python -m venv .venv
@@ -280,7 +280,7 @@ O sistema gera logs estruturados conforme SRS:
 pytest
 
 # Testes com cobertura
-pytest --cov=medifolder
+pytest --cov=clinikondo
 
 # Teste específico
 pytest tests/test_processing.py -v

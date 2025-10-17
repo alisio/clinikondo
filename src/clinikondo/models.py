@@ -1,4 +1,4 @@
-"""Definição das entidades principais do Medifolder."""
+"""Definição das entidades principais do CliniKondo."""
 
 from __future__ import annotations
 

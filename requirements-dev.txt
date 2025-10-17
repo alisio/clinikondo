@@ -1,4 +1,4 @@
-# Medifolder - Development Requirements
+# CliniKondo - Development Requirements
 # Dependências para desenvolvimento e testes
 
 # Inclui todas as dependências de produção

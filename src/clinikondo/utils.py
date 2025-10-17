@@ -1,4 +1,4 @@
-"""Funções utilitárias usadas pelo pipeline do Medifolder."""
+"""Funções utilitárias usadas pelo pipeline do CliniKondo."""
 
 from __future__ import annotations
 

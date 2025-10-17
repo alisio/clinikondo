@@ -1,4 +1,4 @@
-"""Pacote principal do Medifolder."""
+"""Pacote principal do CliniKondo."""
 
 from __future__ import annotations
 
