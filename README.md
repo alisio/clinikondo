@@ -239,18 +239,18 @@ python -m src.clinikondo processar \
 
 ```
 ~/clinikondo/saida/
-├── antonio_alisio_de_menezes_cordeiro/
+├── nome_do_paciente/
 │   ├── exames/
 │   │   ├── ```
-2024-03-15-antonio_alisio_de_menezes_cordeiro-exame-laboratorial-hemograma-completo.pdf
+2024-03-15-nome_do_paciente-exame-laboratorial-hemograma-completo.pdf
 ```
 
 **Padrão:** `AAAA-MM-DD-nome_paciente-tipo-especialidade-descricao.ext`
-│   │   └── 2024-02-20-antonio_alisio_de_menezes_cordeiro-exame-cardiologia-eletrocardiograma.pdf
+│   │   └── 2024-02-20-nome_do_paciente-exame-cardiologia-eletrocardiograma.pdf
 │   ├── receitas_medicas/
-│   │   └── 2024-03-10-antonio_alisio_de_menezes_cordeiro-receita-cardiologia-captopril-uso-continuo.pdf
+│   │   └── 2024-03-10-nome_do_paciente-receita-cardiologia-captopril-uso-continuo.pdf
 │   └── laudos/
-│       └── 2024-03-01-antonio_alisio_de_menezes_cordeiro-laudo-radiologia-radiografia-torax.pdf
+│       └── 2024-03-01-nome_do_paciente-laudo-radiologia-radiografia-torax.pdf
 └── maria_silva_santos/
     └── vacinas/
         └── 2024-01-15-maria_silva_santos-vacina-pediatria-covid-terceira-dose.pdf
@@ -324,7 +324,7 @@ O sistema gera logs estruturados conforme SRS:
   "status": "sucesso", 
   "confianca_extracao": 0.95,
   "metodo_extracao": "llm",
-  "paciente_identificado": "antonio_cordeiro",
+  "paciente_identificado": "joao",
   "tipo_documento": "exame",
   "especialidade": "laboratorial",
   "duracao_total_ms": 3214,
