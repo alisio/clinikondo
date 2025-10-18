@@ -21,6 +21,8 @@ def _default_types() -> list[DocumentType]:
                 "cardiologia",
                 "endocrinologia",
                 "ginecologia",
+                "otorrinolaringologia",
+                "infectologia",
             ],
         ),
         DocumentType(

@@ -92,7 +92,7 @@ def validate_llm_response(data: Dict[str, Any]) -> None:
     
     if data.get("especialidade") and data["especialidade"] not in [
         "radiologia", "laboratorial", "cardiologia", "endocrinologia", 
-        "ginecologia", "clinica_geral", "dermatologia", "pediatria", "oftalmologia"
+        "ginecologia", "clinica_geral", "dermatologia", "pediatria", "oftalmologia", "otorrinolaringologia", "infectologia"
     ]:
         raise ValueError(f"especialidade inválida: {data['especialidade']}")
 
@@ -134,6 +134,8 @@ formatações quebradas ou textos mistos) e retorne um objeto JSON com os seguin
 - dermatologia
 - pediatria
 - oftalmologia
+- otorrinolaringologia
+- infectologia
 
 **Instruções adicionais:**
 - Sempre tente preencher todos os campos, mesmo que inferindo com base no conteúdo.

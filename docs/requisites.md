@@ -165,7 +165,7 @@ AAAA-MM-DD-nome_paciente-tipo_documento-especialidade-descricao.ext
 
 | Tipo | Pasta Destino | Palavras-Chave | Especialidades Comuns |
 |------|---------------|----------------|----------------------|
-| `exame` | `exames` | exame, resultado, imagem, ultrassom, laboratorio | radiologia, laboratorial, cardiologia |
+| `exame` | `exames` | exame, resultado, imagem, ultrassom, laboratorio | radiologia, laboratorial, cardiologia, otorrinolaringologia, infectologia |
 | `receita` | `receitas_medicas` | receita, prescricao, medicamento | clinica_geral, cardiologia, endocrinologia |
 | `vacina` | `vacinas` | vacina, imunizacao, dose, cartao | pediatria, clinica_geral |
 | `controle` | `controle_de_pressao_e_glicose` | pressao, glicose, monitoramento | cardiologia, endocrinologia |
